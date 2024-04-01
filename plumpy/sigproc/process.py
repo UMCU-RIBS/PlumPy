@@ -36,7 +36,7 @@ def process_mne(data: np.ndarray,
     '''
 
     if not freqs:
-        freqs = dict(hfb=range(60, 90))
+        freqs = dict(hfb=range(60, 91))
 
     info = mne.create_info(ch_names=[str(i) for i in channels], sfreq=sr, ch_types=ch_types, verbose=None)
     d_ = mne.io.RawArray(data, info, first_samp=0, copy='auto', verbose=None)
@@ -49,18 +49,21 @@ def process_mne(data: np.ndarray,
 
     ##
     d_.notch_filter(freqs=np.arange(50, 1000, 50))
-    plot_psd(signal=d_, fmax=sr/2)
-    save_plot(plot_path, name=data_name + '_notch_psd')
+    if plot_path:
+        plot_psd(signal=d_, fmax=sr/2)
+        save_plot(plot_path, name=data_name + '_notch_psd')
 
     ## ignores bad by default
     d_ref, ref_par = mne.set_eeg_reference(d_.copy(), 'average')
-    plot_psd(signal=d_ref, fmax=sr/2)
-    save_plot(plot_path, name=data_name + '_notch_car_psd')
+    if plot_path:
+        plot_psd(signal=d_ref, fmax=sr/2)
+        save_plot(plot_path, name=data_name + '_notch_car_psd')
 
     ##
     d_res = d_ref.copy().resample(sfreq=500)
-    plot_psd(signal=d_res, fmax=250)
-    save_plot(plot_path, name=data_name + '_notch_car_500Hz_psd')
+    if plot_path:
+        plot_psd(signal=d_res, fmax=250)
+        save_plot(plot_path, name=data_name + '_notch_car_500Hz_psd')
 
     ##
     d_out = {}
@@ -70,7 +73,7 @@ def process_mne(data: np.ndarray,
         processed = mne.time_frequency.tfr_array_morlet(np.expand_dims(d_res._data, 0),
                                                         # (n_epochs, n_channels, n_times)
                                                         sfreq=500,
-                                                        freqs=fq,
+                                                        freqs=np.array(fq),
                                                         verbose=True,
                                                         n_cycles=4. * 2 * np.pi,
                                                         n_jobs=1)

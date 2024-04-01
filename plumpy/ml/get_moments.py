@@ -21,11 +21,11 @@ def get_moments(source, xmin, xmax=None, duration=None, units='seconds', sr=None
     else:
         raise NotImplementedError
 
-    if xmax and duration:
+    if xmax is not None and duration is not None:
         raise Exception('Cannot have both xmax and duration, choose one')
-    if xmax:
+    if xmax is not None:
         xmax_ = xmax
-    elif duration:
+    elif duration is not None:
         xmax_ = xmin + duration
     else:
         raise NotImplementedError
