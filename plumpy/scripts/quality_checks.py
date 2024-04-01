@@ -13,10 +13,6 @@ pd.set_option('display.max_rows', 500)
 
 
 ##
-# run = 's007_r001'
-# task = 'rest' # 14nav or rest
-# subj_cfg = '/Fridge/users/julia/project_corticom/cc2/14nav/cc2.yml'
-
 
 def run_dqc(subj_cfg, task, run):
     ## set params
