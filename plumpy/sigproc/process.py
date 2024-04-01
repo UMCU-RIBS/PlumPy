@@ -3,10 +3,20 @@
 '''
 import mne
 import numpy as np
+import typing
 from plumpy.utils.plots import plot_psd, save_plot
 from plumpy.sigproc.general import resample, smooth_signal_1d
 
-def process_mne(data, channels, sr, ch_types='ecog', plot_path=None, data_name=None, bad=None, sr_post=100, n_smooth=1):
+def process_mne(data: np.ndarray,
+                channels: list,
+                sr: float,
+                ch_types: str = 'ecog',
+                plot_path: str = None,
+                data_name: str = None,
+                bad: list = None,
+                sr_post: float = 100.,
+                n_smooth: int = 1,
+                freqs: typing.Dict = None):
     '''
     Perform preprocessing on raw ECoG data: channels x time
     TODO: turn to pipeline with processors as for online preprocessing
@@ -20,9 +30,13 @@ def process_mne(data, channels, sr, ch_types='ecog', plot_path=None, data_name=N
     :param bad: list of int: indices of bad channels
     :param sr_post: float: target sr for preprocessed data
     :param n_smooth: int: size for smoothing
+    :param freqs: dict of frequencies to extract with a wavelet transform
     :return:
         d_out: dict with processed data per frequency band
     '''
+
+    if not freqs:
+        freqs = dict(hfb=range(60, 90))
 
     info = mne.create_info(ch_names=[str(i) for i in channels], sfreq=sr, ch_types=ch_types, verbose=None)
     d_ = mne.io.RawArray(data, info, first_samp=0, copy='auto', verbose=None)
@@ -51,11 +65,12 @@ def process_mne(data, channels, sr, ch_types='ecog', plot_path=None, data_name=N
     ##
     d_out = {}
     # for band, freqs in zip(['hfb', 'beta', 'alpha'], (np.arange(60, 180), np.arange(13, 30), np.arange(8, 12))):
-    for band, freqs in zip(['hfb'], [np.arange(60, 180)]):
+    # for band, freqs in zip(['hfb'], [np.arange(60, 90)]):
+    for band, fq in freqs.items():
         processed = mne.time_frequency.tfr_array_morlet(np.expand_dims(d_res._data, 0),
                                                         # (n_epochs, n_channels, n_times)
                                                         sfreq=500,
-                                                        freqs=freqs,
+                                                        freqs=fq,
                                                         verbose=True,
                                                         n_cycles=4. * 2 * np.pi,
                                                         n_jobs=1)
