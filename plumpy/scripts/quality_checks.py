@@ -4,8 +4,6 @@ import sys
 sys.path.insert(0, './src/')
 sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 from plumpy.utils.io import load_config, load_blackrock
-from plumpy.sigproc.general import resample, sec2ind, calculate_rms
-from plumpy.sigproc.process import process_mne
 from plumpy.utils.plots import *
 import numpy as np
 import pandas as pd
@@ -49,47 +47,48 @@ def run_dqc(subj_cfg, task, run):
     # plt.vlines(x=event_sample_ids, ymin=-400, ymax=400, color='black')
 
     ## channels
-    ch_name = cfg['channel_path']
+    ch_name = subject['grid_map']
     channels = pd.read_csv(ch_name, header=None)
     channels = [int(i.strip('ch')) for i in channels[0]]
     grid = np.array(channels).reshape(-1, 8)
 
-    ## plot rms
-    rms = calculate_rms(data["data"][seg_id])
-    plot_on_grid(grid, rms, label='RMS', colormap='viridis_r')
-    save_plot(plot_path, name=tag + '_raw_rms')
-
-    ## plot means
-    means = np.mean(data["data"][seg_id], 1)
-    plot_on_grid(grid, means, label='Mean', colormap='viridis_r')
-    save_plot(plot_path, name=tag + '_raw_mean')
-
-    ## plot channels on a grid
+    # ## plot rms
+    # rms = calculate_rms(data["data"][seg_id])
+    # plot_on_grid(grid, rms, label='RMS', colormap='viridis_r')
+    # save_plot(plot_path, name=tag + '_raw_rms')
+    #
+    # ## plot means
+    # means = np.mean(data["data"][seg_id], 1)
+    # plot_on_grid(grid, means, label='Mean', colormap='viridis_r')
+    # save_plot(plot_path, name=tag + '_raw_mean')
+    #
+    # ## plot channels on a grid
     stds = np.std(data["data"][seg_id], 1)
     outliers = np.where(stds > 200)[0]
-    plot_signals_on_grid(data["data"][seg_id], grid, outliers=outliers, ymin=-2000, ymax=2000)
-    save_plot(plot_path, name=tag + '_raw_channels')
-
-    ## preprocess
-    d_out = process_mne(data=data["data"][seg_id], channels=channels, sr=sr_raw, ch_types='ecog',
-                        plot_path=plot_path, data_name=tag, bad=outliers, sr_post=sr_post, n_smooth=1)
-    # d_out = {}
-    # band = 'hfb'
-    # d_out['hfb'] = np.load(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'))
+    # plot_signals_on_grid(data["data"][seg_id], grid, outliers=outliers, ymin=-2000, ymax=2000)
+    # save_plot(plot_path, name=tag + '_raw_channels')
+    #
+    # ## preprocess
+    # d_out = process_mne(data=data["data"][seg_id], channels=channels, sr=sr_raw, ch_types='ecog',
+    #                     plot_path=plot_path, data_name=tag, bad=outliers, sr_post=sr_post, n_smooth=1)
+    d_out = {}
+    band = 'hfb'
+    d_out['hfb'] = np.load(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'))
 
     ## events
     t_events_d = np.round(np.array(event_sample_ids)/(sr_raw/sr_post)).astype(int)
-    plt.figure()
-    plt.plot(d_out['hfb'][:, 5])
-    plt.vlines(x=t_events_d, ymin=1, ymax=4, color='black')
+    # plt.figure()
+    # plt.plot(d_out['hfb'][:, 5])
+    # plt.vlines(x=t_events_d, ymin=1, ymax=4, color='black')
+    #
+    # ## save processed + events as a csv
+    # for band in d_out.keys():
+    #     np.save(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'), d_out[band])
 
-    ## save processed
-    for band in d_out.keys():
-        np.save(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'), d_out[band])
-
-    ## plot
-    plot_signals_on_grid(d_out['hfb'].T, grid, outliers, ymin=1, ymax=4.5)
-    save_plot(plot_path, name=tag + '_hfb_channels')
+    #
+    # ## plot
+    # plot_signals_on_grid(d_out['hfb'].T, grid, outliers, ymin=1, ymax=4.5)
+    # save_plot(plot_path, name=tag + '_hfb_channels')
 
     return d_out, t_events_d, c_events, grid, outliers
 

@@ -68,3 +68,13 @@ def sec2ind(s, sr):
     :return: int: sample that corresponds to the timestamp
     '''
     return int(Decimal(s * sr).quantize(0, ROUND_HALF_UP))
+
+def ind2sec(ind, sr):
+    '''
+    Convert timestamp to sample
+
+    :param ind: int, sample index
+    :param sr: float, sampling rate
+    :return: float: timestamp in seconds that corresponds to the sample index
+    '''
+    return float(ind)/sr

@@ -13,8 +13,7 @@ import seaborn as sns
 def save_plot(plot_path, name, format='png'):
     if plot_path is not None:
         if not Path(plot_path).exists(): Path(plot_path).mkdir(parents=True, exist_ok=True)
-        plt.savefig(plot_path / Path(name), format=format, dpi=160, transparent=True)
-        plt.pause(2)
+        plt.savefig(plot_path / Path(name), format=format, dpi=160, transparent=True, bbox_inches='tight')
         plt.close()
 
 def plot_data(data, events, plot_chan=5, seg_id=0, units=None):
