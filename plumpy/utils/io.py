@@ -3,7 +3,7 @@ Load/write info from/to files
 '''
 import json
 import warnings
-
+import numpy as np
 import yaml
 import pandas as pd
 import sys
@@ -42,6 +42,22 @@ def dict2json(save_path, save_name, d):
         raise NotImplementedError
     with open(save_path / f'{save_name}.json', 'w') as fp:
         json.dump(d_, fp, indent=4)
+
+def load_grid(grid_path):
+    #grid_path = subject['grid_map']
+    channels = pd.read_csv(grid_path, header=None)
+    channels = [int(i.strip('ch')) for i in channels[0]]
+    grid = np.array(channels).reshape(-1, 8)
+    return grid
+
+def load_processed(task, run, config):
+    params = config['preprocess']
+    d_out = {}
+    for band in params['bands']:
+        tmp_name = f'{task}_{run}_{params["reference"]}_{band}_{params["target_sampling_rate"]}Hz.npy'
+        d_out[band] = np.load(str(Path(config['data_path'])/ tmp_name))
+    events = pd.read_csv(str(Path(config['data_path']) / f'{task}_{run}_events.csv'))
+    return d_out, events
 
 def load_blackrock(nev_path, elec_ids='all', start_time_s=0, data_time_s='all'):
     '''

@@ -1,32 +1,32 @@
 '''
 '''
-import numpy as np
 import pandas as pd
 import sys
 sys.path.insert(0, './src/')
 sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
-from plumpy.utils.io import load_config, load_blackrock
+from plumpy.utils.io import load_config, load_blackrock, load_grid
 from plumpy.utils.plots import *
-from plumpy.sigproc.general import calculate_rms
+from plumpy.sigproc.general import calculate_rms, ind2sec, sec2ind
 from plumpy.sigproc.process import process_mne
 pd.set_option('display.max_rows', 500)
 
 
 ##
 
-def run_dqc(subj_cfg, task, run, preload=False, plot=True):
+def run_dqc(config, task, run, preload=False, plot=True):
     ## set params
     tag = f'{task}_{run}'
-    subject = load_config(subj_cfg)
-    cfg = load_config(subject['tasks'][task])
-    sr_post = cfg['target_sampling_rate']
-    assert run in cfg['all_runs'], 'No such run'
+    name = config['subject']
+    subj_cfg = load_config(f'{config["meta_path"]}/{name}/{name}.yml')
+    plot_path = config['plot_path']
+    proc_path = config['data_path']
+    sr_post = config['preprocess']['target_sampling_rate']
+    grid = load_grid(subj_cfg['grid_map'])
+    assert run in config['all_runs'], 'No such run'
 
     ## load data
-    data, events, units = load_blackrock(cfg['raw_paths'][run])
+    data, events, units = load_blackrock(config['raw_paths'][run])
     sr_raw = data['samp_per_s']
-    proc_path = subject['data_path']
-    plot_path = subject['plot_path']
     if plot:
         plot_data(data, events, units=units)
         save_plot(plot_path, name=tag + '_raw_triggers')
@@ -49,12 +49,6 @@ def run_dqc(subj_cfg, task, run, preload=False, plot=True):
     # plt.plot(data["data"][seg_id][5])
     # plt.vlines(x=event_sample_ids, ymin=-400, ymax=400, color='black')
 
-    ## channels
-    ch_name = subject['grid_map']
-    channels = pd.read_csv(ch_name, header=None)
-    channels = [int(i.strip('ch')) for i in channels[0]]
-    grid = np.array(channels).reshape(-1, 8)
-
     ## plot rms
     rms = calculate_rms(data["data"][seg_id])
     if plot:
@@ -76,32 +70,39 @@ def run_dqc(subj_cfg, task, run, preload=False, plot=True):
             plot_signals_on_grid(data["data"][seg_id], grid, outliers=outliers, ymin=-2000, ymax=2000)
             save_plot(plot_path, name=tag + '_raw_channels')
 
+    ## events
+    #t_events_d = np.round(np.array(event_sample_ids)/(sr_raw/sr_post)).astype(int)
+    #t_events_sec = np.array([ind2sec(i, sr_post) for i in t_events_d])
+    t_events_sec = np.array([ind2sec(i, sr_raw) for i in event_sample_ids])
+    t_events_d = np.array([sec2ind(i, sr_post) for i in t_events_sec])
+    events_df = pd.DataFrame({'events':c_events, f'samples_{sr_post}Hz': t_events_d, 'times_sec' : t_events_sec})
+    # plt.figure()
+    # plt.plot(d_out['hfb'][:, 5])
+    # plt.vlines(x=t_events_d, ymin=1, ymax=4, color='black')
+
     ## preprocess
+    channels = pd.read_csv(subj_cfg['grid_map'], header=None)
+    channels = [int(i.strip('ch')) for i in channels[0]]
+
     if not preload:
+        # process
         d_out = process_mne(data=data["data"][seg_id], channels=channels, sr=sr_raw, ch_types='ecog',
                             plot_path=plot_path, data_name=tag, bad=outliers, sr_post=sr_post, n_smooth=1)
+        # save
+        for band in d_out.keys():
+            np.save(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'), d_out[band])
+        events_df.to_csv(str(Path(proc_path)/f'{tag}_events.csv'))
     else:
         d_out = {}
         band = 'hfb'
         d_out['hfb'] = np.load(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'))
+        events_df = pd.read_csv(str(Path(proc_path)/f'{tag}_events.csv'))
 
-    ## events
-    t_events_d = np.round(np.array(event_sample_ids)/(sr_raw/sr_post)).astype(int)
-    # plt.figure()
-    # plt.plot(d_out['hfb'][:, 5])
-    # plt.vlines(x=t_events_d, ymin=1, ymax=4, color='black')
-    #
-    ## save processed + events as a csv
-    if not preload:
-        for band in d_out.keys():
-            np.save(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'), d_out[band])
-
-    #
     ## plot
     if plot:
         if not preload: # slow plots, only plot once
             plot_signals_on_grid(d_out['hfb'].T, grid, outliers, ymin=1, ymax=4.5)
             save_plot(plot_path, name=tag + '_hfb_channels')
 
-    return d_out, t_events_d, c_events, grid, outliers
+    return d_out, events_df, outliers
 
