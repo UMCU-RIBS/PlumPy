@@ -2,6 +2,8 @@
 Load/write info from/to files
 '''
 import json
+import warnings
+
 import yaml
 import pandas as pd
 import sys
@@ -56,9 +58,14 @@ def load_blackrock(nev_path, elec_ids='all', start_time_s=0, data_time_s='all'):
 
     datafile_nev = Path(nev_path)
     assert datafile_nev.exists(), f'{datafile_nev} does not exist'
-    nsx_path = nev_path.replace('nev', 'ns3')
-    datafile_nsx = Path(nsx_path)
-    assert datafile_nsx.exists(), f'{datafile_nsx} does not exist'
+    for x in [2, 3]:
+        if Path(nev_path.replace('nev', f'ns{x}')).exists():
+            nsx_path = nev_path.replace('nev', f'ns{x}')
+            datafile_nsx = Path(nsx_path)
+            warnings.warn(f'Loading ns{x}. Double-check if this is correct.')
+            break
+
+    #assert datafile_nsx.exists(), f'{datafile_nsx} does not exist'
 
     nsx_file = brpylib.NsxFile(str(datafile_nsx))
     cont_data = nsx_file.getdata(elec_ids, start_time_s, data_time_s, downsample=1, full_timestamps=True)

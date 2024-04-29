@@ -14,7 +14,7 @@ pd.set_option('display.max_rows', 500)
 
 ##
 
-def run_dqc(subj_cfg, task, run, preload=False, plot=True):
+def run_dqc(subj_cfg, task, run, preload=False):
     ## set params
     tag = f'{task}_{run}'
     subject = load_config(subj_cfg)
@@ -25,11 +25,10 @@ def run_dqc(subj_cfg, task, run, preload=False, plot=True):
     ## load data
     data, events, units = load_blackrock(cfg['raw_paths'][run])
     sr_raw = data['samp_per_s']
+    plot_data(data, events, units=units)
     proc_path = subject['data_path']
     plot_path = subject['plot_path']
-    if plot:
-        plot_data(data, events, units=units)
-        save_plot(plot_path, name=tag + '_raw_triggers')
+    save_plot(plot_path, name=tag + '_raw_triggers')
 
     ##
     seg_id = 0
@@ -57,24 +56,21 @@ def run_dqc(subj_cfg, task, run, preload=False, plot=True):
 
     ## plot rms
     rms = calculate_rms(data["data"][seg_id])
-    if plot:
-        plot_on_grid(grid, rms, label='RMS', colormap='viridis_r')
-        save_plot(plot_path, name=tag + '_raw_rms')
+    plot_on_grid(grid, rms, label='RMS', colormap='viridis_r')
+    save_plot(plot_path, name=tag + '_raw_rms')
 
     ## plot means
     means = np.mean(data["data"][seg_id], 1)
-    if plot:
-        plot_on_grid(grid, means, label='Mean', colormap='viridis_r')
-        save_plot(plot_path, name=tag + '_raw_mean')
+    plot_on_grid(grid, means, label='Mean', colormap='viridis_r')
+    save_plot(plot_path, name=tag + '_raw_mean')
 
     ## plot channels on a grid
     stds = np.std(data["data"][seg_id], 1)
     outliers = np.where(stds > np.percentile(stds, 95))[0]
     #outliers = np.where(stds > 200)[0]
-    if plot:
-        if not preload: # slow plots, only plot once
-            plot_signals_on_grid(data["data"][seg_id], grid, outliers=outliers, ymin=-2000, ymax=2000)
-            save_plot(plot_path, name=tag + '_raw_channels')
+    if not preload:
+        plot_signals_on_grid(data["data"][seg_id], grid, outliers=outliers, ymin=-2000, ymax=2000)
+        save_plot(plot_path, name=tag + '_raw_channels')
 
     ## preprocess
     if not preload:
@@ -98,10 +94,9 @@ def run_dqc(subj_cfg, task, run, preload=False, plot=True):
 
     #
     ## plot
-    if plot:
-        if not preload: # slow plots, only plot once
-            plot_signals_on_grid(d_out['hfb'].T, grid, outliers, ymin=1, ymax=4.5)
-            save_plot(plot_path, name=tag + '_hfb_channels')
+    if not preload:
+        plot_signals_on_grid(d_out['hfb'].T, grid, outliers, ymin=1, ymax=4.5)
+        save_plot(plot_path, name=tag + '_hfb_channels')
 
     return d_out, t_events_d, c_events, grid, outliers
 

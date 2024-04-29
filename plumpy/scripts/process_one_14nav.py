@@ -15,15 +15,15 @@ pd.set_option('display.max_rows', 500)
 
 ##
 subj_cfg = '/Fridge/users/julia/project_corticom/cc2/14nav/cc2.yml'
+subject = load_config(subj_cfg)
 al_t, al_p = [], []
-for run in ['s006_r001', 's006_r002', 's007_r001', 's007_r002', 's008_r001']:
+for run in subject['include_runs']:
     print(run)
     rest_data, rest_times, rest_events, _, rest_outliers = run_dqc(subj_cfg, 'rest', run)
     task_data, task_times, task_events, grid, task_outliers = run_dqc(subj_cfg, '14nav', run)
 
     ##
     task = '14nav'
-    subject = load_config(subj_cfg)
     cfg = load_config(subject['tasks'][task])
     variant = cfg['order'][run]
     plot_path = subject['plot_path']
@@ -115,129 +115,127 @@ for run in ['s006_r001', 's006_r002', 's007_r001', 's007_r002', 's008_r001']:
         if dur == 6 * sr_post:
             al_t.append(ts)
             al_p.append(ps)
-print('done')
-#
-# plot_on_grid(grid, np.median(np.array(al_t),0), label=f'Ttest words-rest ({int(dur / sr_post)} s)', colormap='vlag', xmin=-10, xmax=10)
-# save_plot(plot_path, name=f'_median_ttest_words_sep_rest_dur{int(dur / sr_post)}s_pale')
+
+    ## plot averages over all words: rest rest
+    for av_words in [True, False]:
+        with sns.plotting_context('poster', font_scale=1):
+            for gid, add in zip([3, 4, 2, 1], [0, 4, 8, 12]):
+                fig = plt.figure(figsize=(16, 10), layout="constrained")
+                spec = fig.add_gridspec(nrows=4, ncols=8)
+                for i in range(4):
+                    for j in range(8):
+                        ax = fig.add_subplot(spec[i, j])
+                        if av_words:
+                            tw = []
+                            for w in word_prep:
+                                for iw in np.where(task_events == w)[0]:
+                                    tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
+                            [plt.plot(it[:, grid[i+add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
+                        else:
+                            for w in word_prep:
+                                tw = []
+                                if w in task_events:
+                                    for iw in np.where(task_events == w)[0]:
+                                        tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
+                                    [plt.plot(it[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
+                                    plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
+                        tr = []
+                        for r in ind_rest:
+                            tr.append(yz[r:r + 4 * sr_post])
+                        [plt.plot(it[:, grid[i+add, j] - 1], color='red', linewidth=.2, alpha=.15) for it in tr]
+                        plt.plot(np.mean(np.array(tr), 0)[:, grid[i+add, j] - 1], color='red', linewidth=1)
+                        if av_words:
+                            plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
+                        plt.title(grid[i+add, j])
+                        plt.ylim(-3.5, 3.5)
+                        ax.set(xticklabels=[])  # remove the tick labels
+                        ax.tick_params(bottom=False)
+                        if not (i == 0 and j == 0):
+                            ax.set(yticklabels=[])  # remove the tick labels
+                            ax.tick_params(left=False)
+                if av_words:
+                    save_plot(plot_path, name=tag + f'_sep_rest_hfb_word_rest_avg_words_grid{gid}')
+                else:
+                    save_plot(plot_path, name=tag + f'_sep_rest_hfb_word_rest_sep_words_grid{gid}')
+
+    ## plot averages over all words: task rest
+    for av_words in [True, False]:
+        with sns.plotting_context('poster', font_scale=1):
+            for gid, add in zip([3, 4, 2, 1], [0, 4, 8, 12]):
+                fig = plt.figure(figsize=(16, 10), layout="constrained")
+                spec = fig.add_gridspec(nrows=4, ncols=8)
+                for i in range(4):
+                    for j in range(8):
+                        ax = fig.add_subplot(spec[i, j])
+                        if av_words:
+                            tw = []
+                            for w in word_prep:
+                                for iw in np.where(task_events == w)[0]:
+                                    tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
+                            [plt.plot(it[:, grid[i+add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
+                        else:
+                            for w in word_prep:
+                                tw = []
+                                if w in task_events:
+                                    for iw in np.where(task_events == w)[0]:
+                                        tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
+                                    [plt.plot(it[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
+                                    plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
+                        tr = []
+                        for r in rest_prep:
+                            for ir in np.where(task_events == r)[0]:
+                                tr.append(xz[task_times[ir + 1]:task_times[ir + 1] + 4 * sr_post])
+                        [plt.plot(it[:, grid[i+add, j] - 1], color='red', linewidth=.2, alpha=.15) for it in tr]
+                        plt.plot(np.mean(np.array(tr), 0)[:, grid[i+add, j] - 1], color='red', linewidth=1)
+                        if av_words:
+                            plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
+                        plt.title(grid[i+add, j])
+                        plt.ylim(-3.5, 3.5)
+                        ax.set(xticklabels=[])  # remove the tick labels
+                        ax.tick_params(bottom=False)
+                        if not (i == 0 and j == 0):
+                            ax.set(yticklabels=[])  # remove the tick labels
+                            ax.tick_params(left=False)
+                if av_words:
+                    save_plot(plot_path, name=tag + f'_task_rest_hfb_word_rest_avg_words_grid{gid}')
+                else:
+                    save_plot(plot_path, name=tag + f'_task_rest_hfb_word_rest_sep_words_grid{gid}')
+
+    ## plot averages separate per word: task rest
+    # gid = 1
+    # add = 12
+    for gid, add in zip([3, 4, 2, 1], [0, 4, 8, 12]):
+        fig = plt.figure(figsize=(16, 10), layout="constrained")
+        spec = fig.add_gridspec(nrows=4, ncols=8)
+        for i in range(4):
+            for j in range(8):
+                ax = fig.add_subplot(spec[i, j])
+                for w in word_prep:
+                    tw = []
+                    if w in task_events:
+                        for iw in np.where(task_events == w)[0]:
+                            tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
+                        [plt.plot(it[:, grid[i+add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
+                        plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
+                tr = []
+                for r in rest_prep:
+                    for ir in np.where(task_events == r)[0]:
+                        tr.append(xz[task_times[ir + 1]:task_times[ir + 1] + 4 * sr_post])
+                [plt.plot(it[:, grid[i+add, j] - 1], color='red', linewidth=.2, alpha=.15) for it in tr]
+                plt.plot(np.mean(np.array(tr), 0)[:, grid[i+add, j] - 1], color='red', linewidth=1)
+                plt.title(grid[i+add, j])
+                plt.ylim(-3.5, 3.5)
+                ax.set(xticklabels=[])  # remove the tick labels
+                ax.tick_params(bottom=False)
+                if not (i == 0 and j == 0):
+                    ax.set(yticklabels=[])  # remove the tick labels
+                    ax.tick_params(left=False)
+        save_plot(plot_path, name=tag + f'_hfb_word_rest_sep_words_grid{gid}')
+
+    plt.close('all')
 
 
-    # ## plot averages over all words: rest rest
-    # for av_words in [True, False]:
-    #     with sns.plotting_context('poster', font_scale=1):
-    #         for gid, add in zip([3, 4, 2, 1], [0, 4, 8, 12]):
-    #             fig = plt.figure(figsize=(16, 10), layout="constrained")
-    #             spec = fig.add_gridspec(nrows=4, ncols=8)
-    #             for i in range(4):
-    #                 for j in range(8):
-    #                     ax = fig.add_subplot(spec[i, j])
-    #                     if av_words:
-    #                         tw = []
-    #                         for w in word_prep:
-    #                             for iw in np.where(task_events == w)[0]:
-    #                                 tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
-    #                         [plt.plot(it[:, grid[i+add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
-    #                     else:
-    #                         for w in word_prep:
-    #                             tw = []
-    #                             if w in task_events:
-    #                                 for iw in np.where(task_events == w)[0]:
-    #                                     tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
-    #                                 [plt.plot(it[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
-    #                                 plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
-    #                     tr = []
-    #                     for r in ind_rest:
-    #                         tr.append(yz[r:r + 4 * sr_post])
-    #                     [plt.plot(it[:, grid[i+add, j] - 1], color='red', linewidth=.2, alpha=.15) for it in tr]
-    #                     plt.plot(np.mean(np.array(tr), 0)[:, grid[i+add, j] - 1], color='red', linewidth=1)
-    #                     if av_words:
-    #                         plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
-    #                     plt.title(grid[i+add, j])
-    #                     plt.ylim(-3.5, 3.5)
-    #                     ax.set(xticklabels=[])  # remove the tick labels
-    #                     ax.tick_params(bottom=False)
-    #                     if not (i == 0 and j == 0):
-    #                         ax.set(yticklabels=[])  # remove the tick labels
-    #                         ax.tick_params(left=False)
-    #             if av_words:
-    #                 save_plot(plot_path, name=tag + f'_sep_rest_hfb_word_rest_avg_words_grid{gid}')
-    #             else:
-    #                 save_plot(plot_path, name=tag + f'_sep_rest_hfb_word_rest_sep_words_grid{gid}')
-    #
-    # ## plot averages over all words: task rest
-    # for av_words in [True, False]:
-    #     with sns.plotting_context('poster', font_scale=1):
-    #         for gid, add in zip([3, 4, 2, 1], [0, 4, 8, 12]):
-    #             fig = plt.figure(figsize=(16, 10), layout="constrained")
-    #             spec = fig.add_gridspec(nrows=4, ncols=8)
-    #             for i in range(4):
-    #                 for j in range(8):
-    #                     ax = fig.add_subplot(spec[i, j])
-    #                     if av_words:
-    #                         tw = []
-    #                         for w in word_prep:
-    #                             for iw in np.where(task_events == w)[0]:
-    #                                 tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
-    #                         [plt.plot(it[:, grid[i+add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
-    #                     else:
-    #                         for w in word_prep:
-    #                             tw = []
-    #                             if w in task_events:
-    #                                 for iw in np.where(task_events == w)[0]:
-    #                                     tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
-    #                                 [plt.plot(it[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
-    #                                 plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
-    #                     tr = []
-    #                     for r in rest_prep:
-    #                         for ir in np.where(task_events == r)[0]:
-    #                             tr.append(xz[task_times[ir + 1]:task_times[ir + 1] + 4 * sr_post])
-    #                     [plt.plot(it[:, grid[i+add, j] - 1], color='red', linewidth=.2, alpha=.15) for it in tr]
-    #                     plt.plot(np.mean(np.array(tr), 0)[:, grid[i+add, j] - 1], color='red', linewidth=1)
-    #                     if av_words:
-    #                         plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
-    #                     plt.title(grid[i+add, j])
-    #                     plt.ylim(-3.5, 3.5)
-    #                     ax.set(xticklabels=[])  # remove the tick labels
-    #                     ax.tick_params(bottom=False)
-    #                     if not (i == 0 and j == 0):
-    #                         ax.set(yticklabels=[])  # remove the tick labels
-    #                         ax.tick_params(left=False)
-    #             if av_words:
-    #                 save_plot(plot_path, name=tag + f'_task_rest_hfb_word_rest_avg_words_grid{gid}')
-    #             else:
-    #                 save_plot(plot_path, name=tag + f'_task_rest_hfb_word_rest_sep_words_grid{gid}')
-    #
-    # ## plot averages separate per word: task rest
-    # # gid = 1
-    # # add = 12
-    # for gid, add in zip([3, 4, 2, 1], [0, 4, 8, 12]):
-    #     fig = plt.figure(figsize=(16, 10), layout="constrained")
-    #     spec = fig.add_gridspec(nrows=4, ncols=8)
-    #     for i in range(4):
-    #         for j in range(8):
-    #             ax = fig.add_subplot(spec[i, j])
-    #             for w in word_prep:
-    #                 tw = []
-    #                 if w in task_events:
-    #                     for iw in np.where(task_events == w)[0]:
-    #                         tw.append(xz[task_times[iw + 1]:task_times[iw + 1] + 4 * sr_post])
-    #                     [plt.plot(it[:, grid[i+add, j] - 1], color='#1f77b4', linewidth=.2, alpha=.15) for it in tw]
-    #                     plt.plot(np.mean(np.array(tw), 0)[:, grid[i + add, j] - 1], color='#1f77b4', linewidth=1)
-    #             tr = []
-    #             for r in rest_prep:
-    #                 for ir in np.where(task_events == r)[0]:
-    #                     tr.append(xz[task_times[ir + 1]:task_times[ir + 1] + 4 * sr_post])
-    #             [plt.plot(it[:, grid[i+add, j] - 1], color='red', linewidth=.2, alpha=.15) for it in tr]
-    #             plt.plot(np.mean(np.array(tr), 0)[:, grid[i+add, j] - 1], color='red', linewidth=1)
-    #             plt.title(grid[i+add, j])
-    #             plt.ylim(-3.5, 3.5)
-    #             ax.set(xticklabels=[])  # remove the tick labels
-    #             ax.tick_params(bottom=False)
-    #             if not (i == 0 and j == 0):
-    #                 ax.set(yticklabels=[])  # remove the tick labels
-    #                 ax.tick_params(left=False)
-    #     save_plot(plot_path, name=tag + f'_hfb_word_rest_sep_words_grid{gid}')
-    #
-    # plt.close('all')
-
+    plot_on_grid(grid, np.median(np.array(al_t),0), label=f'Ttest words-rest ({int(dur / sr_post)} s)', colormap='vlag', xmin=-10, xmax=10)
+    save_plot(plot_path, name=f'_median_ttest_words_sep_rest_dur{int(dur / sr_post)}s_pale')
 
     ###################################################################################################################

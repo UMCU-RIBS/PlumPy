@@ -48,7 +48,7 @@ def process_mne(data: np.ndarray,
     # d_.drop_channels(d_.info['bads'])
 
     ##
-    d_.notch_filter(freqs=np.arange(50, 1000, 50))
+    d_.notch_filter(freqs=np.arange(50, sr/2, 50))
     if plot_path:
         plot_psd(signal=d_, fmax=sr/2)
         save_plot(plot_path, name=data_name + '_notch_psd')
