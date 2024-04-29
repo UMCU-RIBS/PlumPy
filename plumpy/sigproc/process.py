@@ -37,6 +37,10 @@ def process_mne(data: np.ndarray,
 
     if not freqs:
         freqs = dict(hfb=range(60, 91))
+    else:
+        #TODO: double check this
+        for band in freqs.keys(): # if hfb = 60 to 90, add 1 to 90 to make upper bound include 90
+            freqs[band][-1] += 1
 
     info = mne.create_info(ch_names=[str(i) for i in channels], sfreq=sr, ch_types=ch_types, verbose=None)
     d_ = mne.io.RawArray(data, info, first_samp=0, copy='auto', verbose=None)

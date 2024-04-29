@@ -83,7 +83,7 @@ def map_active_one(data, events, config, run=None, plot=True):
             ts = np.array([i.statistic for i in a])
             al_vals[dur] = ts
     else:
-        if params['comparison'] == 'z-start':
+        if params['comparison'] == 'z-start': #TODO: should be adjusted for cases without dynamic cue
             x_, scaler2 = zscore(x, xmin=t_events_sec[task_events == 50][0], duration=5, units='seconds', sr=sr_post)
         elif params['comparison'] == 'z-rest':
             temp = []
@@ -125,18 +125,21 @@ def map_active_mean(config):
     subj_cfg = load_config(f'{config["meta_path"]}/{name}/{name}.yml')
     plot_path = config["plot_path"]
     grid = load_grid(subj_cfg['grid_map'])
-    out = []
+    out = { k:[] for k in params['duration'] }
 
     for run in config['include_runs']:
         print(run)
         data, events = load_processed(task, run, config)
-        out.append(map_active_one(data, events))
+        temp = map_active_one(data, events, config, run, plot=False)
+        for k, v in temp.items():
+            out[k].append(v)
+
+    for k, v in temp.items():
+        out[k] = np.mean(np.array(out[k]), 0)
         if params['comparison'] == 't_baseline':
-            plot_on_grid(grid, np.mean(np.array(out), 0), label=f'Words-rest (6 s)', colormap='vlag', xmin=-10,
-                         xmax=10)
+            plot_on_grid(grid, out[k], label=f'Words-rest ({k} s)', colormap='vlag', xmin=-10, xmax=10)
         else:
-            plot_on_grid(grid, np.mean(np.array(out), 0), label=f'Words-rest (6 s)', colormap='vlag', xmin=-2.5,
-                         xmax=2.5)
+            plot_on_grid(grid, out[k], label=f'Words-rest ({k} s)', colormap='vlag', xmin=-2.5, xmax=2.5)
         save_plot(plot_path,
-                  name=f'{task}_mean_{params["comparison"]}_words_dur6s_{len(subj_cfg["include_runs"])}runs')
+                  name=f'{task}_mean_{params["comparison"]}_words_dur{k}s_{len(config["include_runs"])}runs')
     return out

@@ -9,7 +9,8 @@ sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 from plumpy.scripts.quality_checks import run_dqc
 from plumpy.utils.io import load_config
 from plumpy.scripts.map_active_vs_rest import map_active_one, map_active_mean
-from plumpy.scripts.prepare4classify import save4classify
+from plumpy.scripts.prepare4classify import prepare4classify
+from plumpy.scripts.classify_14nav import classify
 pd.set_option('display.max_rows', 500)
 
 
@@ -20,13 +21,12 @@ def main(config_file):
 
     for run in config['include_runs']:
         print(run)
-        data, events, _ = run_dqc(config, task, run, preload=True, plot=False)
-        map_active_one(data, events, config, run, plot=True)
-        save4classify(data, events, config, run)
+        #data, events, _ = run_dqc(config, task, run, preload=True, plot=False)
+        #map_active_one(data, events, config, run, plot=True)
 
     #map_active_mean(config)
-
-    #classify_14nav(config)
+    prepare4classify(config_file)
+    classify(config_file)
 
 
 

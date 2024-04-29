@@ -87,11 +87,22 @@ def run_dqc(config, task, run, preload=False, plot=True):
     if not preload:
         # process
         d_out = process_mne(data=data["data"][seg_id], channels=channels, sr=sr_raw, ch_types='ecog',
-                            plot_path=plot_path, data_name=tag, bad=outliers, sr_post=sr_post, n_smooth=1)
+                            plot_path=plot_path, data_name=tag, bad=outliers, sr_post=sr_post, n_smooth=1,
+                            freqs=config['preprocess']['bands'])
         # save
         for band in d_out.keys():
             np.save(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'), d_out[band])
-        events_df.to_csv(str(Path(proc_path)/f'{tag}_events.csv'))
+        variant = config['order'][run]
+        if run not in config['dyn_runs'] and variant == '8-14': # different codes were used before the dynamic cue
+            task_events = events_df['events'].values - 7
+            task_events[task_events == 24] = 31
+            task_events[0] = 200
+            task_events[-1] = 201
+            task_events[1] = 1
+            task_events[2] = 50
+            events_df['events'] = task_events
+        events_df.to_csv(str(Path(proc_path) / f'{tag}_events.csv'))
+
     else:
         d_out = {}
         band = 'hfb'

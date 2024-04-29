@@ -11,5 +11,7 @@ def sort_nicely(l):
     
 def flatten_list(t):
     return [item for sublist in t for item in sublist]
-    
+
+def to_list(x):
+    return [x] if not isinstance(x, list) else x
 
