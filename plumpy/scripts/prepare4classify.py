@@ -63,5 +63,5 @@ def save4classify(config_path):
 
 
 def prepare4classify(config_path):
-    #save4classify(config_path)
+    save4classify(config_path)
     populate_yml(config_path)

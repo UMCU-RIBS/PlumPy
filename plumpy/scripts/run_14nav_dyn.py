@@ -1,5 +1,5 @@
 '''
-python plumpy/scripts/process_14nav_dyn.py -c /Fridge/users/julia/project_corticom/cc2/config_14nav.yml
+python plumpy/scripts/run_14nav_dyn.py -c /Fridge/users/julia/project_corticom/cc2/config_14nav.yml
 '''
 import sys
 import argparse
@@ -19,12 +19,12 @@ def main(config_file):
     config = load_config(config_file)
     task = config['task']
 
-    for run in config['include_runs']:
+    for run in config['include_runs'][-2:]:
         print(run)
-        #data, events, _ = run_dqc(config, task, run, preload=True, plot=False)
-        #map_active_one(data, events, config, run, plot=True)
+        data, events, _ = run_dqc(config, task, run, preload=False, plot=True)
+        map_active_one(data, events, config, run, plot=True)
 
-    #map_active_mean(config)
+    map_active_mean(config)
     prepare4classify(config_file)
     classify(config_file)
 
