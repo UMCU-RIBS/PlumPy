@@ -1,12 +1,13 @@
 '''
 How to run:
-    python classify_14nav.py \
-        -c /Fridge/users/julia/project_corticom/cc2/14nav/cc2_14nav.yml
+    python /home/julia/Documents/Python/PlumPy/plumpy/scripts/classify_14nav.py \
+        -c /Fridge/users/julia/project_corticom/cc2/config_14nav.yml
 '''
 
 import sys
 sys.path.insert(0, '.')
 sys.path.insert(0, '/home/julia/Documents/Python/RiverFErn')
+sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 import argparse
 import numpy as np
 import pickle
@@ -101,10 +102,10 @@ def classify(config_path):
 
     print('_'.join(events_all.classes))
     print('Sampling rate: ' + str(sr) + ', tmin: ' + str(tmin) + ', tmax: ' + str(tmax))
-    print('Median CV accuracy: ' + str(np.median(scores)) + '+-' + str(stats.median_abs_deviation(scores)))
-    print('Mean CV accuracy: ' + str(np.mean(scores)) + '+-' + str(np.std(scores)))
-    print('Median CV accuracy avg time: ' + str(np.median(scores2)) + '+-' + str(stats.median_abs_deviation(scores2)))
-    print('Mean CV accuracy avg time: ' + str(np.mean(scores2)) + '+-' + str(np.std(scores2)))
+    print('Median CV accuracy: ' + str(np.round(np.median(scores), 2)) + '+-' + str(np.round(stats.median_abs_deviation(scores), 2)))
+    print('Mean CV accuracy: ' + str(np.round(np.mean(scores), 2)) + '+-' + str(np.round(np.std(scores), 2)))
+    print('Median CV accuracy avg time: ' + str(np.round(np.median(scores2), 2)) + '+-' + str(np.round(stats.median_abs_deviation(scores2), 2)))
+    print('Mean CV accuracy avg time: ' + str(np.round(np.mean(scores2), 2)) + '+-' + str(np.round(np.std(scores2), 2)))
     print('done')
 
     # # plot and save
