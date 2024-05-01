@@ -71,10 +71,10 @@ def run_dqc(config, task, run, preload=False, plot=True):
             save_plot(plot_path, name=tag + '_raw_channels')
 
     ## events
-    #t_events_d = np.round(np.array(event_sample_ids)/(sr_raw/sr_post)).astype(int)
-    #t_events_sec = np.array([ind2sec(i, sr_post) for i in t_events_d])
-    t_events_sec = np.array([ind2sec(i, sr_raw) for i in event_sample_ids])
-    t_events_d = np.array([sec2ind(i, sr_post) for i in t_events_sec])
+    t_events_d = np.round(np.array(event_sample_ids)/(sr_raw/sr_post)).astype(int)
+    t_events_sec = np.array([ind2sec(i, sr_post) for i in t_events_d])
+    #t_events_sec = np.array([ind2sec(i, sr_raw) for i in event_sample_ids]) # more accurate but worse accuracy?
+    #t_events_d = np.array([sec2ind(i, sr_post) for i in t_events_sec])
     events_df = pd.DataFrame({'events':c_events, f'samples_{sr_post}Hz': t_events_d, 'times_sec' : t_events_sec})
     # plt.figure()
     # plt.plot(d_out['hfb'][:, 5])
@@ -83,6 +83,18 @@ def run_dqc(config, task, run, preload=False, plot=True):
     ## preprocess
     channels = pd.read_csv(subj_cfg['grid_map'], header=None)
     channels = [int(i.strip('ch')) for i in channels[0]]
+
+    variant = config['order'][run]
+    if run not in config['dyn_runs'] and variant == '8-14':  # different codes were used before the dynamic cue
+        task_events = events_df['events'].values - 7
+        task_events[task_events == 24] = 31
+        task_events[0] = 200
+        task_events[-1] = 201
+        task_events[1] = 1
+        task_events[2] = 50
+        events_df['events'] = task_events
+    events_df.to_csv(str(Path(proc_path) / f'{tag}_events.csv'))
+
 
     if not preload:
         # process

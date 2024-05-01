@@ -139,7 +139,7 @@ def map_active_mean(config):
         if params['comparison'] == 't_baseline':
             plot_on_grid(grid, out[k], label=f'Words-rest ({k} s)', colormap='vlag', xmin=-10, xmax=10)
         else:
-            plot_on_grid(grid, out[k], label=f'Words-rest ({k} s)', colormap='vlag', xmin=-2.5, xmax=2.5)
+            plot_on_grid(grid, out[k], label=f'Words-rest ({k} s)', colormap='vlag', xmin=-2, xmax=2)
         save_plot(plot_path,
                   name=f'{task}_mean_{params["comparison"]}_words_dur{k}s_{len(config["include_runs"])}runs')
     return out
