@@ -64,9 +64,9 @@ sequenceDuration        = 3;
 % these are referred in the simulation script using the names provided here
 % 
 if isfield(params, 'channels')
-    channels                = params.channels;
+    channels                = double(params.channels);
 else
-    channels                = [61 64 65];
+    channels                = [61, 64, 69, 68];
 end
 if isfield(params, 'lowFreq')
     lowFreq                 = params.lowFreq;
@@ -81,7 +81,7 @@ end
 if isfield(params, 'featureWeights')
     featureWeights          = params.featureWeights;
 else
-    featureWeights          = [1/3 1/3 1/3];
+    featureWeights          = ones(1,length(channels))*(1/length(channels));
 end
 if isfield(params, 'timeSmoothing')
     timeSmoothing           = params.timeSmoothing; 
@@ -113,6 +113,12 @@ if isfield(params, 'refractoryPeriod')
 else
     refractoryPeriod        = 3;
 end
+
+%% Report parameters
+%for ifield = 1:length(fieldnames(params))
+%    fprintf(['--------- Parameter ', params.(ifield) '=', )
+%end
+struct2table(params)
 
 %% Initialize output
 TP                          = zeros(length(data), 1);
@@ -146,7 +152,7 @@ for run = 1:length(data)
                    ones(1, length(channels))*lowFreq;   % lowF
                    ones(1, length(channels))*highFreq;  % highF
                    ones(1, length(channels))*5;];       % evaluationsPerBin
-
+    inputOutput
     fprm.ARF.inputOutput          = inputOutput; %[chIn; chOut; lowF; highF; evaluationsPerBin];
     fprm.ARF.modelOrder           = 25;
     fprm.ARF.samplingFrequency    = data(run).fs.srcData;
@@ -358,7 +364,7 @@ for run = 1:length(data)
 
 end %loop runs
 
-TP = sum(TP);
+TP = mean(TP);
 FP = sum(FP);
 
 

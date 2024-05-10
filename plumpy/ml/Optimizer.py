@@ -8,7 +8,8 @@ import multiprocessing
 import optuna
 import json
 import numpy as np
-
+import sys
+sys.path.insert(0, '/home/julia/Documents/Python/RiverFErn')
 from pathlib import Path
 from os import getpid
 from optuna import Trial
@@ -50,60 +51,61 @@ class GpuQueue:
 
 class Optimizer:
     def __init__(self, args: dict) -> None:
-        seed = np.random.choice(1000, 1) # cannot set constant seed because of parallel distributed setup
-        sampler = optuna.samplers.TPESampler(seed=seed)  # Make the sampler behave in a deterministic way. seed=78
-        study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
+        self.study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
         self.save_path = Path(args['save_path']) / args['task'] / args['subject'] / args['model_type']
         self.plot_path = Path(args['plot_path']) / args['task'] / args['subject'] / args['model_type']
         self.save_path.mkdir(parents=True, exist_ok=True)
         self.plot_path.mkdir(parents=True, exist_ok=True)
         self.n_trials = args['n_trials']
         print(self.save_path)
-        np.savetxt(str(self.save_path / 'sampler_seed_process_') + str(getpid()) + '.txt', seed, fmt='%4d') # save seed to reproduce results
 
         if args['load_if_exists'] == False:
             try:
-                optuna.study.delete_study(study_name, storage='sqlite:///' + str(self.save_path / study_name) + '.db')
+                optuna.study.delete_study(self.study_name, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db')
             except Exception as e:
                 pass
+        self.load_if_exists = args['load_if_exists']
 
-        self.study = optuna.create_study(study_name=study_name,
-                                    sampler=sampler, storage='sqlite:///' + str(self.save_path / study_name) + '.db',
+    def optimize(self, obj_fun, directions):
+        seed = np.random.choice(1000, 1) # cannot set constant seed because of parallel distributed setup
+        sampler = optuna.samplers.TPESampler(seed=seed)  # Make the sampler behave in a deterministic way. seed=78
+        np.savetxt(str(self.save_path / 'sampler_seed_process_') + str(getpid()) + '.txt', seed, fmt='%4d') # save seed to reproduce results
+        self.study = optuna.create_study(study_name=self.study_name,
+                                    sampler=sampler, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db',
                                     pruner=optuna.pruners.MedianPruner(n_startup_trials=10,
                                                                        n_warmup_steps=5,
                                                                        interval_steps=10,
                                                                        n_min_trials=50),
-                                    direction='maximize',
-                                    load_if_exists=args['load_if_exists'])
+                                    directions=directions,
+                                    load_if_exists=self.load_if_exists)
 
-    def optimize(self, obj_fun):
         self.study.optimize(obj_fun, n_trials=self.n_trials, n_jobs=1)
         self.study.trials_dataframe().to_csv(str(self.save_path / 'optuna_trials.tsv'), sep='\t')
 
-        fig = optuna.visualization.plot_param_importances(self.study)
-        fig.write_image(str(self.plot_path / 'importances'), format='pdf')
-        plot_optuna_opt_history(self.study, self.plot_path)
+        # fig = optuna.visualization.plot_param_importances(self.study)
+        # fig.write_image(str(self.plot_path / 'importances'), format='pdf')
+        # plot_optuna_opt_history(self.study, self.plot_path)
+        #
+        # fig = optuna.visualization.plot_contour(self.study, params=[fig['data'][0].y[-1], fig['data'][0].y[-2]])
+        # fig.write_image(str(self.plot_path / 'contour'), format='pdf')
+        #
+        # fig = optuna.visualization.plot_optimization_history(self.study)
+        # fig.write_image(str(self.plot_path / 'opt_history'), format='pdf')
+        #
+        # fig = optuna.visualization.plot_slice(self.study)
+        # fig.write_image(str(self.plot_path / 'param_slice'), format='pdf')
 
-        fig = optuna.visualization.plot_contour(self.study, params=[fig['data'][0].y[-1], fig['data'][0].y[-2]])
-        fig.write_image(str(self.plot_path / 'contour'), format='pdf')
-
-        fig = optuna.visualization.plot_optimization_history(self.study)
-        fig.write_image(str(self.plot_path / 'opt_history'), format='pdf')
-
-        fig = optuna.visualization.plot_slice(self.study)
-        fig.write_image(str(self.plot_path / 'param_slice'), format='pdf')
-
-        json.dump(self.study.best_params,
-                  open(str(self.save_path / 'best_params.json'), 'w'),
-                  indent=4,
-                  sort_keys=True)
-
-        json.dump(self.study.best_trial.__dict__,
-                  open(str(self.save_path / 'best_trial.json'), 'w'),
-                  indent=4,
-                  sort_keys=True,
-                  default=str)
-
-        print('Best parameters')
-        for key, value in self.study.best_params.items():
-            print(key + '=' + str(value) + '\n')
+        # json.dump(self.study.best_params,
+        #           open(str(self.save_path / 'best_params.json'), 'w'),
+        #           indent=4,
+        #           sort_keys=True)
+        #
+        # json.dump(self.study.best_trial.__dict__,
+        #           open(str(self.save_path / 'best_trial.json'), 'w'),
+        #           indent=4,
+        #           sort_keys=True,
+        #           default=str)
+        #
+        # print('Best parameters')
+        # for key, value in self.study.best_params.items():
+        #     print(key + '=' + str(value) + '\n')
