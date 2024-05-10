@@ -4,6 +4,7 @@ import pandas as pd
 import sys
 sys.path.insert(0, './src/')
 sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
+from timeit import default_timer as timer
 from plumpy.utils.io import load_config, load_blackrock, load_grid
 from plumpy.utils.plots import *
 from plumpy.sigproc.general import calculate_rms, ind2sec, sec2ind
@@ -25,7 +26,10 @@ def run_dqc(config, task, run, preload=False, plot=True):
     assert run in config['all_runs'], 'No such run'
 
     ## load data
+    start = timer()
     data, events, units = load_blackrock(config['raw_paths'][run])
+    elapsed_time = timer() - start
+    print(f'It took {elapsed_time} seconds to load the data')
     sr_raw = data['samp_per_s']
     if plot:
         plot_data(data, events, units=units)
