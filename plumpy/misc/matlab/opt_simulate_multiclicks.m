@@ -7,12 +7,14 @@ function [TP, FP] = opt_simulate_multiclicks(params)
 % channels              : list of integers: channels to include. Can be 
 %                         1 - N ch
 %                         e.g. [1, 2]
-% lowFreq               : list of integers: the lowest frequency in the 
-%                         bin of interest (= length of channels)
-%                         e.g. [65 65]
-% highFreq              : list of integers: the highest frequency in the 
-%                         bin of interest (= length of channels)
-%                         e.g. [95 95]
+% lowFreq               : list of integers or integer: the lowest frequency 
+%                         in the bin of interest (= length of channels for 
+%                         list or same value is applied to all channels)
+%                         e.g. [65 65] or 65
+% highFreq              : list of integers or integer: the highest 
+%                         frequency in the bin of interest (= length of 
+%                         channels or same value is applied to all channels)
+%                         e.g. [95 95] or 95
 % featureWeights        : list of floats: weights over channels. If you 
 %                         want to get an average signal, do 1/length 
 %                         (channels) for all channel weights (= length of
@@ -55,25 +57,66 @@ header.session          = [17]; % empty = all
 file_paths              = pt_selectDatafiles(header);
 data                    = pt_loadData2StructFromFile(header,file_paths);
 
+%% Click to choose
+sequenceDuration        = 3;
+
 %% Your parameters to optimize:
 % these are referred in the simulation script using the names provided here
 % 
-channels                = params.channels;
-lowFreq                 = params.lowFreq;
-highFreq                = params.highFreq;
-featureWeights          = params.featureWeights;
-timeSmoothing           = params.timeSmoothing; 
-
-linearClassWeights      = params.linearWeights;
-threshold               = params.threshold; 
-
-activePeriod            = params.activePeriod;          
-activeRate              = params.activeRate;        
-refractoryPeriod        = params.refractoryPeriod;    
+if isfield(params, 'channels')
+    channels                = params.channels;
+else
+    channels                = [61 64 65];
+end
+if isfield(params, 'lowFreq')
+    lowFreq                 = params.lowFreq;
+else
+    lowFreq                 = 65;
+end
+if isfield(params, 'highFreq')
+    highFreq                = params.highFreq;
+else
+    highFreq                = 95;
+end
+if isfield(params, 'featureWeights')
+    featureWeights          = params.featureWeights;
+else
+    featureWeights          = [1/3 1/3 1/3];
+end
+if isfield(params, 'timeSmoothing')
+    timeSmoothing           = params.timeSmoothing; 
+else
+    timeSmoothing           = ones(1,6)*(1/6);
+end
+if isfield(params, 'linearClassWeights')
+    linearClassWeights      = params.linearWeights;
+else
+    linearClassWeights      = 1;
+end
+if isfield(params, 'threshold')
+    threshold               = params.threshold; 
+else
+    threshold               = .45; 
+end
+if isfield(params, 'activePeriod')
+    activePeriod            = params.activePeriod;    
+else
+    activePeriod            = 1; 
+end
+if isfield(params, 'activePeriod')
+    activeRate              = params.activeRate;  
+else
+    activeRate              = .8; 
+end
+if isfield(params, 'refractoryPeriod')
+    refractoryPeriod        = params.refractoryPeriod;
+else
+    refractoryPeriod        = 3;
+end
 
 %% Initialize output
-TP = zeros(length(data));
-FP = zeros(length(data));
+TP                          = zeros(length(data), 1);
+FP                          = zeros(length(data), 1);
 
 %% Run simulation
 for run = 1:length(data)
@@ -131,7 +174,7 @@ for run = 1:length(data)
 
     %% Time Smoothing filter [TSF] - Smooths the selected features:
     fprm.TSF         = [];                    %simulate with the original parameters
-    fprm.TSF.weights = repmat(timeSmoothing, [length(channels),1]);  %[NCh x samples weights]
+    fprm.TSF.weights = repmat(timeSmoothing, [size(fsel_data,2),1]);  %[NCh x samples weights]
     fprm.TSF.toplot  = 0;                                   %1=plot data_out, 0=don't plot
 
     % Set data to be filtered
@@ -145,13 +188,13 @@ for run = 1:length(data)
     fprm.AF                   = [];               %simulate with the original parameters
     %fprm.samplingFrequency    = 5;                %sampling frequency of power signal
     %     or
-    fprm.AF.method            = ones(1,length(channels))*2;            %[ch1...chN], 1=initial parameters, 2=first samples, 3=latest samples
-    fprm.AF.initalMeans       = [zeros(1,length(channels))];           %[ch1...chN]
-    fprm.AF.initalStds        = [ones(1,length(channels))];            %[ch1...chN]
+    fprm.AF.method            = ones(1, size(sm_data,2))*2;            %[ch1...chN], 1=initial parameters, 2=first samples, 3=latest samples
+    fprm.AF.initalMeans       = [zeros(1, size(sm_data,2))];           %[ch1...chN]
+    fprm.AF.initalStds        = [ones(1, size(sm_data,2))];            %[ch1...chN]
     fprm.AF.bufferLength      = 30;               %in seconds
     fprm.AF.minimalLength     = 30;               %in seconds
     fprm.AF.bufferDiscard     = 1.2;              %in seconds
-    fprm.AF.excludeThr        = ones(1,length(channels))*100;              %in standard normal distribution values (~ -3 to 3)
+    fprm.AF.excludeThr        = ones(1, size(sm_data,2))*100;              %in standard normal distribution values (~ -3 to 3)
     fprm.AF.samplingFrequency = Fs;                %sampling frequency of power signal
     fprm.AF.toplot            = 0;                %1=plot data_out, 0=don't plot
 
@@ -306,8 +349,12 @@ for run = 1:length(data)
     fprm.scoring.toplot        = 0;
 
     [stats] = pt_scoreMultiClicks_simulated(data(run), fprm.scoring);
-    TP(run) = sum([stats.hitRate]);
-    FP(run) = sum([stats.FPatRest_click]);
+
+    %% Collect output
+    all_tps = [stats.hitRate];          % percentage
+    all_fps = [stats.FPatRest_total];   % counts
+    TP(run) = all_tps([stats.sequenceDuration] == sequenceDuration); 
+    FP(run) = all_fps([stats.sequenceDuration] == sequenceDuration);
 
 end %loop runs
 
