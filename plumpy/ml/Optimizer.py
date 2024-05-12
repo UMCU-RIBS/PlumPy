@@ -49,6 +49,97 @@ class GpuQueue:
 #
 #         return obj_val
 
+class Optimizer4:
+    def __init__(self, args: dict) -> None:
+        self.study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
+        self.save_path = Path(args['save_path']) / args['task'] / args['subject'] / args['model_type']
+        self.plot_path = Path(args['plot_path']) / args['task'] / args['subject'] / args['model_type']
+        self.save_path.mkdir(parents=True, exist_ok=True)
+        self.plot_path.mkdir(parents=True, exist_ok=True)
+        self.n_trials = args['n_trials']
+        print(self.save_path)
+
+        if args['load_if_exists'] == False:
+            try:
+                optuna.study.delete_study(self.study_name, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db')
+            except Exception as e:
+                pass
+        self.load_if_exists = args['load_if_exists']
+
+    def optimize(self, obj_fun, direction):
+        seed = np.random.choice(1000, 1) # cannot set constant seed because of parallel distributed setup
+        sampler = optuna.samplers.BruteForceSampler(seed=seed)  # Make the sampler behave in a deterministic way. seed=78
+        np.savetxt(str(self.save_path / 'sampler_seed_process_') + str(getpid()) + '.txt', seed, fmt='%4d') # save seed to reproduce results
+        self.study = optuna.create_study(study_name=self.study_name,
+                                    sampler=sampler, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db',
+                                    direction=direction,
+                                    load_if_exists=self.load_if_exists)
+        self.study.optimize(obj_fun, n_trials=self.n_trials, n_jobs=1, gc_after_trial=True)
+        self.study.trials_dataframe().to_csv(str(self.save_path / 'optuna_trials.tsv'), sep='\t', index=False)
+
+
+class Optimizer3:
+    def __init__(self, args: dict) -> None:
+        self.study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
+        self.save_path = Path(args['save_path']) / args['task'] / args['subject'] / args['model_type']
+        self.plot_path = Path(args['plot_path']) / args['task'] / args['subject'] / args['model_type']
+        self.save_path.mkdir(parents=True, exist_ok=True)
+        self.plot_path.mkdir(parents=True, exist_ok=True)
+        self.n_trials = args['n_trials']
+        print(self.save_path)
+
+        if args['load_if_exists'] == False:
+            try:
+                optuna.study.delete_study(self.study_name, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db')
+            except Exception as e:
+                pass
+        self.load_if_exists = args['load_if_exists']
+
+    def optimize(self, obj_fun, direction):
+        seed = np.random.choice(1000, 1) # cannot set constant seed because of parallel distributed setup
+        sampler = optuna.samplers.GPSampler(seed=seed,
+                                            deterministic_objective=True)  # Make the sampler behave in a deterministic way. seed=78
+        np.savetxt(str(self.save_path / 'sampler_seed_process_') + str(getpid()) + '.txt', seed, fmt='%4d') # save seed to reproduce results
+        self.study = optuna.create_study(study_name=self.study_name,
+                                    sampler=sampler, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db',
+                                    direction=direction,
+                                    load_if_exists=self.load_if_exists)
+        self.study.optimize(obj_fun, n_trials=self.n_trials, n_jobs=1, gc_after_trial=True)
+        self.study.trials_dataframe().to_csv(str(self.save_path / 'optuna_trials.tsv'), sep='\t', index=False)
+
+
+class Optimizer2:
+    def __init__(self, args: dict) -> None:
+        self.study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
+        self.save_path = Path(args['save_path']) / args['task'] / args['subject'] / args['model_type']
+        self.plot_path = Path(args['plot_path']) / args['task'] / args['subject'] / args['model_type']
+        self.save_path.mkdir(parents=True, exist_ok=True)
+        self.plot_path.mkdir(parents=True, exist_ok=True)
+        self.n_trials = args['n_trials']
+        print(self.save_path)
+
+        if args['load_if_exists'] == False:
+            try:
+                optuna.study.delete_study(self.study_name, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db')
+            except Exception as e:
+                pass
+        self.load_if_exists = args['load_if_exists']
+
+    def optimize(self, obj_fun, direction, n_features, cat_dist_fun=None):
+        seed = np.random.choice(1000, 1) # cannot set constant seed because of parallel distributed setup
+        sampler = optuna.samplers.TPESampler(seed=seed,
+                                             multivariate=True,
+                                             group=True,
+                                             constant_liar=True,
+                                             categorical_distance_func={f'channel{i}': cat_dist_fun for i in range(n_features)})  # Make the sampler behave in a deterministic way. seed=78
+        np.savetxt(str(self.save_path / 'sampler_seed_process_') + str(getpid()) + '.txt', seed, fmt='%4d') # save seed to reproduce results
+        self.study = optuna.create_study(study_name=self.study_name,
+                                    sampler=sampler, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db',
+                                    direction=direction,
+                                    load_if_exists=self.load_if_exists)
+        self.study.optimize(obj_fun, n_trials=self.n_trials, n_jobs=1, gc_after_trial=True)
+        self.study.trials_dataframe().to_csv(str(self.save_path / 'optuna_trials.tsv'), sep='\t', index=False)
+
 class Optimizer:
     def __init__(self, args: dict) -> None:
         self.study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
@@ -79,8 +170,33 @@ class Optimizer:
                                     directions=directions,
                                     load_if_exists=self.load_if_exists)
 
+        # self.study.add_trial(
+        #     optuna.trial.create_trial(
+        #         params={
+        #             "channel0": 103,
+        #             "channel1": 104,
+        #             "channel2": 109,
+        #             "channel3": 110,
+        #             "featureWeight0": 0.25,
+        #             "featureWeight1": 0.25,
+        #             "featureWeight2": 0.25,
+        #             "featureWeight3": 0.25,
+        #         },
+        #         distributions={
+        #             "channel0": optuna.distributions.IntDistribution(high=128, log=False, low=97, step=1),
+        #             "channel1": optuna.distributions.IntDistribution(high=128, log=False, low=97, step=1),
+        #             "channel2": optuna.distributions.IntDistribution(high=128, log=False, low=97, step=1),
+        #             "channel3": optuna.distributions.IntDistribution(high=128, log=False, low=97, step=1),
+        #             "featureWeight0": optuna.distributions.FloatDistribution(high=1.0, log=False, low=-1.0, step=2.0),
+        #             "featureWeight1": optuna.distributions.FloatDistribution(high=1.0, log=False, low=-1.0, step=2.0),
+        #             "featureWeight2": optuna.distributions.FloatDistribution(high=1.0, log=False, low=-1.0, step=2.0),
+        #             "featureWeight3": optuna.distributions.FloatDistribution(high=1.0, log=False, low=-1.0, step=2.0),
+        #         },
+        #         values=[65.3333, 40],
+        #     )
+        # )
         self.study.optimize(obj_fun, n_trials=self.n_trials, n_jobs=1)
-        self.study.trials_dataframe().to_csv(str(self.save_path / 'optuna_trials.tsv'), sep='\t')
+        self.study.trials_dataframe().to_csv(str(self.save_path / 'optuna_trials.tsv'), sep='\t', index=False)
 
         # fig = optuna.visualization.plot_param_importances(self.study)
         # fig.write_image(str(self.plot_path / 'importances'), format='pdf')

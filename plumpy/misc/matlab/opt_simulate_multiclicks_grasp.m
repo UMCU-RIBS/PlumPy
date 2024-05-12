@@ -1,4 +1,4 @@
-function [TP, FP] = opt_simulate_multiclicks(params)
+function [TP, FP] = opt_simulate_multiclicks_grasp(params)
 % function simulates multiclicks and returns the scores:
 % true positives (TP) anf false positives (FP)
 % it runs for specified brain function, session and runs
@@ -50,15 +50,15 @@ addpath(genpath('/home/julia/Documents/MATLAB/Plumtree/Plumtree'))
 %% Load data
 header.subjName         = 'CC2';
 header.task             = 'MultiClicks';
-header.brainFunction    = 'Selecteer';
+header.brainFunction    = 'Grasp';
 header.app              = 'PT'; % 'PT' = palmtree 'PRES' = presentation (central)
-header.session          = [17]; % empty = all 
+header.session          = [17, 18]; % empty = all 
 
 file_paths              = pt_selectDatafiles(header);
 data                    = pt_loadData2StructFromFile(header,file_paths);
 
 %% Click to choose
-sequenceDuration        = 3;
+sequenceDuration        = 1; % 2 and 5 in later sessions
 
 %% Your parameters to optimize:
 % these are referred in the simulation script using the names provided here
@@ -66,7 +66,7 @@ sequenceDuration        = 3;
 if isfield(params, 'channels')
     channels                = double(params.channels);
 else
-    channels                = [103, 104, 109, 110];
+    channels                = [64, 65, 67, 69];
 end
 if isfield(params, 'lowFreq')
     lowFreq                 = params.lowFreq;
@@ -84,7 +84,9 @@ else
     featureWeights          = ones(1,length(channels))*(1/length(channels));
 end
 if isfield(params, 'timeSmoothing')
-    timeSmoothing           = params.timeSmoothing; 
+    %timeSmoothing           = params.timeSmoothing; 
+    timeSmoothing           = ones(1,params.timeSmoothing)* ...
+                              (1/params.timeSmoothing);
 else
     timeSmoothing           = ones(1,6)*(1/6);
 end
