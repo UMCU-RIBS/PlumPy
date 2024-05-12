@@ -106,6 +106,35 @@ def optimize_mat_multiclicks5(trial, n_features=4):
     print(tp, fp)
     return tp - fp
 
+def optimize_mat_multiclicks6(trial, n_features=10):
+    channels = list(range(1, 33)) + list(range(97, 129)) # two bottom grids
+    channels.remove(121)
+    params = {
+        'channels': np.array([trial.suggest_categorical(f'channel{i}', channels) for i in range(n_features)]), # 33, 96
+        'featureWeights': np.array([trial.suggest_float(f'featureWeight{i}', -1., 1, step=0.2) for i in range(n_features)]),
+        'timeSmoothing': trial.suggest_float(f'timeSmoothing', 6., 22., step=4),
+        'threshold': trial.suggest_float(f'threshold', .2, .9, step=.1),
+        'activePeriod': trial.suggest_float(f'activePeriod', .5, 2, step=.5),
+        'activeRate': trial.suggest_float(f'activeRate', .5, .9, step=.1),
+    }
+    tp, fp = eng.opt_simulate_multiclicks_selecteer(params, nargout=2)
+    print(tp, fp)
+    return tp - fp
+
+def optimize_mat_multiclicks7(trial, n_features=4):
+    channels = [104, 103, 102, 101, 100, 98, 99, 97, 113, 111, 110, 109, 108, 107, 106, 105]
+    params = {
+        'channels': np.array([trial.suggest_categorical(f'channel{i}', channels) for i in range(n_features)]), # 33, 96
+        'featureWeights': np.array([trial.suggest_float(f'featureWeight{i}', 0, 1, step=0.2) for i in range(n_features)]),
+        'timeSmoothing': trial.suggest_float(f'timeSmoothing', 6., 34., step=4),
+        'threshold': trial.suggest_float(f'threshold', .2, .9, step=.1),
+        'activePeriod': trial.suggest_float(f'activePeriod', .5, 2, step=.5),
+        'activeRate': trial.suggest_float(f'activeRate', .5, .9, step=.1),
+    }
+    tp, fp = eng.opt_simulate_multiclicks_selecteer(params, nargout=2)
+    print(tp, fp)
+    return tp - fp
+
 def channel_dist(ch1, ch2):
     import math
     from plumpy.utils.io import load_grid
@@ -144,9 +173,23 @@ cfg = load_config('/Fridge/users/julia/project_corticom/cc2/config_opt_matlab.ym
 #     opt.optimize(obj_fun=optimize_mat_multiclicks5,
 #                  direction='maximize')
 
-from plumpy.ml.Optimizer import Optimizer4
-opt = Optimizer4(cfg)
-if cfg['task'] == 'multiclicks_grasp':
-    opt.optimize(obj_fun=optimize_mat_multiclicks5,
+# from plumpy.ml.Optimizer import Optimizer4
+# opt = Optimizer4(cfg)
+# if cfg['task'] == 'multiclicks_grasp':
+#     opt.optimize(obj_fun=optimize_mat_multiclicks5,
+#                  direction='maximize')
+
+# from plumpy.ml.Optimizer import Optimizer2
+# opt = Optimizer2(cfg)
+# if cfg['task'] == 'multiclicks_selecteer':
+#     opt.optimize(obj_fun=optimize_mat_multiclicks6,
+#                  direction='maximize',
+#                  n_features=10,
+#                  cat_dist_fun=channel_dist)
+
+from plumpy.ml.Optimizer import Optimizer3
+opt = Optimizer3(cfg)
+if cfg['task'] == 'multiclicks_selecteer':
+    opt.optimize(obj_fun=optimize_mat_multiclicks7,
                  direction='maximize')
 

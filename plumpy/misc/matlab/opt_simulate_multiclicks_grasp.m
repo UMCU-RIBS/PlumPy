@@ -52,7 +52,7 @@ header.subjName         = 'CC2';
 header.task             = 'MultiClicks';
 header.brainFunction    = 'Grasp';
 header.app              = 'PT'; % 'PT' = palmtree 'PRES' = presentation (central)
-header.session          = [17, 18]; % empty = all 
+header.session          = [19]; % empty = all 
 
 file_paths              = pt_selectDatafiles(header);
 data                    = pt_loadData2StructFromFile(header,file_paths);

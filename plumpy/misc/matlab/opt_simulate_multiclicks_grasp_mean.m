@@ -1,4 +1,4 @@
-function [TP, FP] = opt_simulate_multiclicks_grasp(params)
+function [TP, FP] = opt_simulate_multiclicks_grasp_mean(params)
 % function simulates multiclicks and returns the scores:
 % true positives (TP) anf false positives (FP)
 % it runs for specified brain function, session and runs

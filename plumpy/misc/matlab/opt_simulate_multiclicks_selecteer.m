@@ -1,4 +1,4 @@
-function [TP, FP] = opt_simulate_multiclicks_grasp(params)
+function [TP, FP] = opt_simulate_multiclicks_selecteer(params)
 % function simulates multiclicks and returns the scores:
 % true positives (TP) anf false positives (FP)
 % it runs for specified brain function, session and runs
@@ -66,7 +66,7 @@ sequenceDuration        = 3; % 4 and 8 in later sessions
 if isfield(params, 'channels')
     channels                = double(params.channels);
 else
-    channels                = [103, 104, 109, 110];
+    channels                = [25, 107, 7, 32, 111, 29, 17, 26, 115, 104];
 end
 if isfield(params, 'lowFreq')
     lowFreq                 = params.lowFreq;
@@ -81,14 +81,15 @@ end
 if isfield(params, 'featureWeights')
     featureWeights          = params.featureWeights;
 else
-    featureWeights          = ones(1,length(channels))*(1/length(channels));
+    featureWeights          = [-0.2, -0.2, -0.4, 0.6, -0.2, -0.4, -0.4, 0.6, -0.8, -0.6];
+    %featureWeights          = ones(1,length(channels))*(1/length(channels));
 end
 if isfield(params, 'timeSmoothing')
     %timeSmoothing           = params.timeSmoothing; 
     timeSmoothing           = ones(1,params.timeSmoothing)* ...
                               (1/params.timeSmoothing);
 else
-    timeSmoothing           = ones(1,6)*(1/6);
+    timeSmoothing           = ones(1,10)*(1/10);
 end
 if isfield(params, 'linearClassWeights')
     linearClassWeights      = params.linearWeights;
@@ -98,17 +99,17 @@ end
 if isfield(params, 'threshold')
     threshold               = params.threshold; 
 else
-    threshold               = .45; 
+    threshold               = .3; 
 end
 if isfield(params, 'activePeriod')
     activePeriod            = params.activePeriod;    
 else
-    activePeriod            = 1; 
+    activePeriod            = .5; 
 end
 if isfield(params, 'activeRate')
     activeRate              = params.activeRate;  
 else
-    activeRate              = .8; 
+    activeRate              = .7; 
 end
 if isfield(params, 'refractoryPeriod')
     refractoryPeriod        = params.refractoryPeriod;
@@ -121,6 +122,8 @@ end
 %    fprintf(['--------- Parameter ', params.(ifield) '=', )
 %end
 struct2table(params)
+disp(['Channels:        ' num2str(params.channels)])
+disp(['Feature weights: ' num2str(params.featureWeights)])
 
 %% Initialize output
 TP                          = zeros(length(data), 1);
@@ -366,8 +369,8 @@ for run = 1:length(data)
 end %loop runs
 
 %%
-TP = sum(TP)/run;
-FP = sum(FP);
+TP = mean(TP);
+FP = mean(FP);
 
 
 
