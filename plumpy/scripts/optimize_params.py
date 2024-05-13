@@ -1,14 +1,49 @@
 '''
-virtual envirornment with the matlab engine: matlab (miniconda)
-had to be a separate env because current matlab version is 23.2.1, it is only compatible with python < 3.12
-so I ran:
+SETUP:
+    virtual envirornment with the matlab engine: matlab (miniconda)
+    had to be a separate env because current matlab version is 23.2.1, it is only compatible with python < 3.12
+    so I ran:
 
-conda create -n matlab python=3.10
-python -m pip install matlabengine==23.2.1
+    conda create -n matlab python=3.10
+    python -m pip install matlabengine==23.2.1
 
-prior to this, followed instructions here: https://pypi.org/project/matlabengine/
+    prior to this, followed instructions here: https://pypi.org/project/matlabengine/
 
-python /home/julia/Documents/Python/PlumPy/plumpy/scripts/optimize_params.py
+USE:
+    python /home/julia/Documents/Python/PlumPy/plumpy/scripts/optimize_params.py
+
+    Needs .yml with parameters:
+        /Fridge/users/julia/project_corticom/cc2/config_opt_matlab.yml
+    Can monitor results in real time using:
+        optuna-dashboard sqlite:///pathToDB
+
+
+below needs to be better organized. There are different scenarios I have tried:
+0) TPE sampler without multivariate=True and group=True, all channels, multiobjective: maximize TP, minimize FP.
+    This led to bad results for both grasp and selecteer:
+                    optimize_mat_multiclicks2 and optimize_mat_multiclicks3
+                    Optimizer
+1) TPE with multivariate=True and group=True, only upper 2 grids for grasp and bottom 2 for selecteer. This is with
+    1 objective: TP - FP (both are mean percentages over all runs), 10 channels are used at once. Added cat_func with
+    distance between electrodes on the grid as categorical distance function
+    Better results but scoring seems incorrect, so unclear
+                    optimize_mat_multiclicks4 and optimize_mat_multiclicks6
+                    Optimizer2
+2) GP sampler, no parallelization (inefficient), 1 objective: TP - FP, 4 channels are used as once
+                    optimize_mat_multiclicks5 and optimize_mat_multiclicks7
+                    Optimizer3
+3) BruteForce sampler for completeness, 1 objective: TP - FP, 4 channels are used as once. Only ran for grasp
+                    optimize_mat_multiclicks5
+                    Optimizer4
+
+TODO:
+    - arrange different samplers into scenarios/parameters
+    - keep multiple objective functions but use selecteer and grasp as a parameter, use only 1 matlab function
+    - pass n_features as a parameter
+    - specify a function for defining parameter space over channels
+    - make a file optimization.py under ml, branch Optimizer into single or multi-objective or just keep single
+    - keep track of individual TP and FP values somewhere
+    - use feval instead of hardcoding matlab function name?
 
 '''
 import matlab.engine
@@ -16,12 +51,12 @@ import numpy as np
 import sys
 sys.path.insert(0, './src/')
 sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
+from pathlib import Path
 from plumpy.utils.io import load_config
 
 eng = matlab.engine.start_matlab()
 s = eng.genpath('/home/julia/Documents/Python/PlumPy/plumpy/misc/matlab')
 eng.addpath(s, nargout=0)
-# data = [-.5, 3, .2, 9, .23, 1];
 
 def optimize_mat_test(trial, n_features=6):
     function_name = 'opt_test'
@@ -135,17 +170,34 @@ def optimize_mat_multiclicks7(trial, n_features=4):
     print(tp, fp)
     return tp - fp
 
-def channel_dist(ch1, ch2):
-    import math
-    from plumpy.utils.io import load_grid
-    grid = load_grid(
-        '/Fridge/bci/data/23-171_CortiCom/E_ResearchData/UBCI-CC02/7_Electrode_localization/Electrode order map/CortecGrid_electrode_label.txt')
+def optimize_mat_multiclicks8(trial, task, n_features):
+    hdr = {}
+    task_, brainFunction = task.split('_')
+    hdr['session'] = np.array([17., 18.])
+    if brainFunction == 'grasp':
+        channels = [63, 61, 64, 59, 60, 62, 57, 58, 79, 77, 75, 73, 71, 69, 67, 65]
+        hdr['sequenceDuration'] = 1.
+        hdr['brainFunction'] = 'Grasp'
+    elif brainFunction == 'selecteer':
+        channels = [104, 103, 102, 101, 100, 98, 99, 97, 113, 111, 110, 109, 108, 107, 106, 105]
+        hdr['sequenceDuration'] = 3.
+        hdr['brainFunction'] = 'Selecteer'
+    else:
+        raise NotImplementedError
+    params = {
+        'channels': np.array([trial.suggest_categorical(f'channel{i}', channels) for i in range(n_features)]), # 33, 96
+        'featureWeights': np.array([trial.suggest_float(f'featureWeight{i}', 0.5, 1, step=0.5) for i in range(n_features)]),
+        'lowFreq': trial.suggest_float(f'lowFreq', 55., 95., step=10),
+        'timeSmoothing': trial.suggest_float(f'timeSmoothing', 0., 12., step=4),
+        'threshold': trial.suggest_float(f'threshold', .1, .9, step=.1),
+        'activePeriod': trial.suggest_float(f'activePeriod', .2, 2, step=.2),
+        'activeRate': trial.suggest_float(f'activeRate', .3, .9, step=.1),
+    }
+    params['highFreq'] = trial.suggest_float(f'highFreq', params['lowFreq'], 145., step=10)
+    tp, fp = eng.opt_simulate_multiclicks(hdr, params, nargout=2)
+    print(tp, fp)
+    return tp - fp
 
-    sqz = lambda x: np.array(x).squeeze()
-    pos = lambda x: np.where(grid==x)
-    p1 = sqz(pos(ch1))
-    p2 = sqz(pos(ch2))
-    return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
 
 
@@ -187,9 +239,23 @@ cfg = load_config('/Fridge/users/julia/project_corticom/cc2/config_opt_matlab.ym
 #                  n_features=10,
 #                  cat_dist_fun=channel_dist)
 
-from plumpy.ml.Optimizer import Optimizer3
-opt = Optimizer3(cfg)
-if cfg['task'] == 'multiclicks_selecteer':
-    opt.optimize(obj_fun=optimize_mat_multiclicks7,
-                 direction='maximize')
+# from plumpy.ml.Optimizer import Optimizer3
+# opt = Optimizer3(cfg)
+# if cfg['task'] == 'multiclicks_selecteer':
+#     opt.optimize(obj_fun=optimize_mat_multiclicks7,
+#                  direction='maximize')
 
+
+params = load_config('/Fridge/users/julia/project_corticom/cc2/multiclicks_grasp_paramsets.yml')
+from plumpy.ml.Optimizer import Optimizer5
+opt = Optimizer5(cfg, obj_fun=lambda trial: optimize_mat_multiclicks8(trial, task=cfg['task'], n_features=cfg['n_features']),
+                      direction='maximize',
+                      type_sampler=cfg['model_type'].split('_')[0],
+                      n_features=cfg['n_features'])
+if not opt.study.trials: # if empty study
+    for k, v in params.items():
+        opt.enquire(v)
+opt.optimize()
+
+
+##

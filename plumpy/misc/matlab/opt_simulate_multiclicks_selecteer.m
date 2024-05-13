@@ -81,8 +81,7 @@ end
 if isfield(params, 'featureWeights')
     featureWeights          = params.featureWeights;
 else
-    featureWeights          = [-0.2, -0.2, -0.4, 0.6, -0.2, -0.4, -0.4, 0.6, -0.8, -0.6];
-    %featureWeights          = ones(1,length(channels))*(1/length(channels));
+    featureWeights          = ones(1,length(channels))*(1/length(channels));
 end
 if isfield(params, 'timeSmoothing')
     %timeSmoothing           = params.timeSmoothing; 
@@ -354,7 +353,7 @@ for run = 1:length(data)
 
     %% Score the MC data
 
-    fprm.scoring.mercy_window = [1 1];
+    fprm.scoring.mercy_window = [0 1];
     fprm.scoring.samplingFrequency = Fs;
     fprm.scoring.toplot        = 0;
 

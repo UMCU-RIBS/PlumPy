@@ -1,4 +1,4 @@
-function [TP, FP] = opt_simulate_multiclicks(params)
+function [TP, FP] = opt_simulate_multiclicks(hdr, params)
 % function simulates multiclicks and returns the scores:
 % true positives (TP) anf false positives (FP)
 % it runs for specified brain function, session and runs
@@ -46,19 +46,23 @@ function [TP, FP] = opt_simulate_multiclicks(params)
 
 
 addpath(genpath('/home/julia/Documents/MATLAB/Plumtree/Plumtree'))
-
+disp(class(hdr.sequenceDuration))
+disp(length(hdr.sequenceDuration))
+disp(hdr.sequenceDuration)
 %% Load data
 header.subjName         = 'CC2';
 header.task             = 'MultiClicks';
-header.brainFunction    = 'Selecteer';
+header.brainFunction    = hdr.brainFunction; % Grasp Selecteer
 header.app              = 'PT'; % 'PT' = palmtree 'PRES' = presentation (central)
-header.session          = [17]; % empty = all 
+header.session          = hdr.session; % empty = all [17, 18]
 
 file_paths              = pt_selectDatafiles(header);
 data                    = pt_loadData2StructFromFile(header,file_paths);
 
 %% Click to choose
-sequenceDuration        = 3;
+sequenceDuration        = hdr.sequenceDuration; 
+% Grasp: 1 and 3 for [17, 18], 2 and 5 in later sessions
+% Selecteer: 3 and 6 for [17, 18], 4 and 8 in later sessions
 
 %% Your parameters to optimize:
 % these are referred in the simulation script using the names provided here
@@ -66,7 +70,7 @@ sequenceDuration        = 3;
 if isfield(params, 'channels')
     channels                = double(params.channels);
 else
-    channels                = [103, 104, 109, 110];
+    channels                = [64, 65, 67, 69];
 end
 if isfield(params, 'lowFreq')
     lowFreq                 = params.lowFreq;
@@ -84,7 +88,9 @@ else
     featureWeights          = ones(1,length(channels))*(1/length(channels));
 end
 if isfield(params, 'timeSmoothing')
-    timeSmoothing           = params.timeSmoothing; 
+    %timeSmoothing           = params.timeSmoothing; 
+    timeSmoothing           = ones(1,params.timeSmoothing)* ...
+                              (1/params.timeSmoothing);
 else
     timeSmoothing           = ones(1,6)*(1/6);
 end
@@ -349,7 +355,7 @@ for run = 1:length(data)
 
     %% Score the MC data
 
-    fprm.scoring.mercy_window = [1 1];
+    fprm.scoring.mercy_window = [0 1];
     fprm.scoring.samplingFrequency = Fs;
     fprm.scoring.toplot        = 0;
 
@@ -365,7 +371,7 @@ end %loop runs
 
 %%
 TP = mean(TP);
-FP = sum(FP);
+FP = mean(FP);
 
 
 
