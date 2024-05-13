@@ -46,9 +46,7 @@ function [TP, FP] = opt_simulate_multiclicks(hdr, params)
 
 
 addpath(genpath('/home/julia/Documents/MATLAB/Plumtree/Plumtree'))
-disp(class(hdr.sequenceDuration))
-disp(length(hdr.sequenceDuration))
-disp(hdr.sequenceDuration)
+
 %% Load data
 header.subjName         = 'CC2';
 header.task             = 'MultiClicks';
@@ -85,7 +83,8 @@ end
 if isfield(params, 'featureWeights')
     featureWeights          = params.featureWeights;
 else
-    featureWeights          = ones(1,length(channels))*(1/length(channels));
+    %featureWeights          = ones(1,length(channels))*(1/length(channels));
+    featureWeights           = ones(1,length(channels));
 end
 if isfield(params, 'timeSmoothing')
     %timeSmoothing           = params.timeSmoothing; 
