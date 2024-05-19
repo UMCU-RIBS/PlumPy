@@ -10,40 +10,35 @@ function [TP, FP] = opt_simulate_multiclicks(hdr, params)
 % lowFreq               : list of integers or integer: the lowest frequency 
 %                         in the bin of interest (= length of channels for 
 %                         list or same value is applied to all channels)
-%                         e.g. [10 65] or 65
+%                         e.g. [65 65] or 65
 % highFreq              : list of integers or integer: the highest 
 %                         frequency in the bin of interest (= length of 
 %                         channels or same value is applied to all channels)
-%                         e.g. [30 95] or 95
+%                         e.g. [95 95] or 95
 % featureWeights        : list of floats: weights over channels. If you 
 %                         want to get an average signal, do 1/length 
 %                         (channels) for all channel weights (= length of
-%                         channels). 
-%                         e.g. [1/2 1/2] or [1 1] produce same results
+%                         channels)
+%                         e.g. [1/2 1/2]
 % timeSmoothing         : list of floats: weights for the samples to 
 %                         smooth over.Example says 6 samples, which means
 %                         equal weighthing over time. If equal weights,
 %                         make sure that each weight = 1/length(samples)
 %                         (= length of samples over time)
 %                         e.g. [1/6 1/6 1/6 1/6 1/6 1/6]
-% linearWeights         : list of integers: weights per feature (=length of 
-%                         lowFreq or highFreq). If equal weights, 
-%                         divide 1 / num features (= length of 
-%                         channels). Use only -1, 0 and 1.
+% linearWeights         : list of floats: weights per feature. If equal 
+%                         weights, divide 1 / num features (= length of 
+%                         channels)
 %                         e.g. [1 1]
-% threshold             : float to threshiold the z-scored signal. Above
-%                         the threshold click can be detected. Can even
-%                         be negative if high frequency band and low
-%                         frequency band signals are combined (signal
-%                         amplitude level for click detection)
-%                         e.g. 0.35 or 1.6
+% threshold             : float within 0-1 to threshiold the z-scored 
+%                         signal. Above the threshold click can be detected
+%                         e.g. 0.35
 % activePeriod          : float (in seconds) for the time during which 
 %                         you want to check for consecutive crossed 
-%                         thresholds (time limit for click detection)
+%                         thresholds 
 %                         e.g. 0.8
-% activeRate            : float within 0-1: proportion of samples in the 
-%                         activePeriod where the signal needs to stay
-%                         above the threshold for a click to be detected
+% activeRate            : float within 0-1 of time in the activePeriod 
+%                         needed to cross the threshold for a click
 %                         e.g. 1
 % refractoryPeriod      : float in seconds of time after the detected 
 %                         click before another click could be detected
@@ -52,18 +47,9 @@ function [TP, FP] = opt_simulate_multiclicks(hdr, params)
 
 addpath(genpath('/home/julia/Documents/MATLAB/Plumtree/Plumtree'))
 
-%%
-% hdr.subject             = 'CC2';
-% hdr.task                = 'MultiClicks';
-% hdr.brainFunction       = 'Grasp';
-% hdr.session             = [];
-% hdr.sequenceDuration    = 3;
-disp(hdr.subject)
-disp(hdr.brainFunction)
-
 %% Load data
-header.subjName         = hdr.subject;  %'CC2';
-header.task             = hdr.task;     %'MultiClicks';
+header.subjName         = 'CC2';
+header.task             = 'MultiClicks';
 header.brainFunction    = hdr.brainFunction; % Grasp Selecteer
 header.app              = 'PT'; % 'PT' = palmtree 'PRES' = presentation (central)
 header.session          = hdr.session; % empty = all [17, 18]
@@ -75,14 +61,10 @@ data                    = pt_loadData2StructFromFile(header,file_paths);
 sequenceDuration        = hdr.sequenceDuration; 
 % Grasp: 1 and 3 for [17, 18], 2 and 5 in later sessions
 % Selecteer: 3 and 6 for [17, 18], 4 and 8 in later sessions
-% Oost: 3 and 7 all sessions (19, 20)
 
 %% Your parameters to optimize:
 % these are referred in the simulation script using the names provided here
-
-if ~exist('params', 'var')
-    params = [];
-end
+% 
 if isfield(params, 'channels')
     channels                = double(params.channels);
 else
@@ -91,18 +73,18 @@ end
 if isfield(params, 'lowFreq')
     lowFreq                 = params.lowFreq;
 else
-    lowFreq                 = [10, 65];
+    lowFreq                 = 65;
 end
 if isfield(params, 'highFreq')
     highFreq                = params.highFreq;
 else
-    highFreq                = [30, 95];
+    highFreq                = 95;
 end
 if isfield(params, 'featureWeights')
     featureWeights          = params.featureWeights;
 else
-    featureWeights          = ones(1,length(channels))*(1/length(channels));
-    %featureWeights           = ones(1,length(channels));
+    %featureWeights          = ones(1,length(channels))*(1/length(channels));
+    featureWeights           = ones(1,length(channels));
 end
 if isfield(params, 'timeSmoothing')
     %timeSmoothing           = params.timeSmoothing; 
@@ -114,7 +96,7 @@ end
 if isfield(params, 'linearClassWeights')
     linearClassWeights      = params.linearWeights;
 else
-    linearClassWeights      = [-1, 1];
+    linearClassWeights      = 1;
 end
 if isfield(params, 'threshold')
     threshold               = params.threshold; 
@@ -134,23 +116,14 @@ end
 if isfield(params, 'refractoryPeriod')
     refractoryPeriod        = params.refractoryPeriod;
 else
-    refractoryPeriod        = 3.6;
+    refractoryPeriod        = 3;
 end
-
-%%
-numBins = length(lowFreq);
-if numBins ~= length(highFreq)
-    error('You did not provide equal low and high limits of your frequency bins of interest'); 
-end
-
 
 %% Report parameters
 %for ifield = 1:length(fieldnames(params))
 %    fprintf(['--------- Parameter ', params.(ifield) '=', )
 %end
 struct2table(params)
-disp(['Channels:        ' num2str(params.channels)])
-disp(['Feature weights: ' num2str(params.featureWeights)])
 
 %% Initialize output
 TP                          = zeros(length(data), 1);
@@ -179,22 +152,11 @@ for run = 1:length(data)
     %% Auto-Regressive Filter [ARF] - Converts data in time domain to power domain:
     fprm                          = [];          %simulate with original parameters (feedback runs)
     
-    % inputOutput = [channels;                           % input
-    %                1:length(channels);                  % output
-    %                ones(1, length(channels))*lowFreq;   % lowF
-    %                ones(1, length(channels))*highFreq;  % highF
-    %                ones(1, length(channels))*5;];       % evaluationsPerBin
-    inputOutput = [repmat(channels, [1, numBins]);          % input
-                    1:length(channels)*numBins;             % output
-                    ones(1, numBins*length(channels));      % lowF
-                    ones(1, numBins*length(channels));      % highF
-                    ones(1, length(channels)*numBins)*5;];  % evaluationsPerBin
-
-    for f = 1:numBins
-        inputOutput(3, (f*length(channels))-length(channels)+1: f*length(channels)) = lowFreq(f);
-        inputOutput(4, (f*length(channels))-length(channels)+1: f*length(channels)) = highFreq(f);
-    end
-
+    inputOutput = [channels;                           % input
+                   1:length(channels);                  % output
+                   ones(1, length(channels))*lowFreq;   % lowF
+                   ones(1, length(channels))*highFreq;  % highF
+                   ones(1, length(channels))*5;];       % evaluationsPerBin
     fprm.ARF.inputOutput          = inputOutput; %[chIn; chOut; lowF; highF; evaluationsPerBin];
     fprm.ARF.modelOrder           = 25;
     fprm.ARF.samplingFrequency    = data(run).fs.srcData;
@@ -210,17 +172,7 @@ for run = 1:length(data)
 
     %% Feature selection filter [FSF] - Selects which power features to use:
     fprm.FSF          = [];                   %simulate with the original parameters
-    %fprm.FSF.weights  = [1:length(channels) ; ones(1, length(channels)); featureWeights];      %[InputCHs ; OutputCHs ; Weights]
-    if size(featureWeights,1) ~= numBins % to have similar weighings per channel in each frequency bin 
-        featureWeights = repmat(featureWeights, [numBins,1]);
-    end
-
-    weights = [1:size(powerdata,2) ; ones(1, length(channels)*numBins); ones(1, length(channels)*numBins)];
-    for f = 1:numBins
-        weights(2,(f*length(channels))-length(channels)+1: f*length(channels)) = f;
-        weights(3,(f*length(channels))-length(channels)+1: f*length(channels)) = featureWeights(f,:);
-    end
-    fprm.FSF.weights  = weights;  
+    fprm.FSF.weights  = [1:length(channels) ; ones(1, length(channels)); featureWeights];      %[InputCHs ; OutputCHs ; Weights]
     fprm.FSF.toplot   = 0;                    %1=plot data_out, 0=don't plot
 
     % Set data to be filtered
@@ -407,12 +359,10 @@ for run = 1:length(data)
     fprm.scoring.toplot        = 0;
 
     [stats] = pt_scoreMultiClicks_simulated(data(run), fprm.scoring);
-    % FPatRest_click is specific to the preceding condition (sequenceDuration), 
-    % FPatRest_total is the total amount of rest trials 
 
     %% Collect output
     all_tps = [stats.hitRate];          % percentage
-    all_fps = [stats.FPatRest_total];   % percentage
+    all_fps = [stats.FPatRest_total];   % counts
     TP(run) = all_tps([stats.sequenceDuration] == sequenceDuration); 
     FP(run) = all_fps([stats.sequenceDuration] == sequenceDuration);
 
@@ -421,4 +371,6 @@ end %loop runs
 %%
 TP = mean(TP);
 FP = mean(FP);
+
+
 

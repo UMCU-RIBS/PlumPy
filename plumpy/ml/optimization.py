@@ -49,10 +49,11 @@ def select_sampler(type_sampler:str, seed:int, n_features:any=None):
     """
     if type_sampler == 'tpe':
         return optuna.samplers.TPESampler(seed=seed,
-                                             multivariate=True,
-                                             group=True,
-                                             constant_liar=True,
-                                             categorical_distance_func={f'channel{i}': channel_dist for i in range(n_features)})
+                                         multivariate=True,
+                                         group=True,
+                                         constant_liar=True,
+                                         categorical_distance_func={f'channel{i}': channel_dist for i in range(n_features)}
+                                                                    if n_features is not None else None)
     elif type_sampler == 'gp':
         return optuna.samplers.GPSampler(seed=seed,
                                             deterministic_objective=True)
@@ -68,25 +69,25 @@ class Optimizer:
         args: parameters for setting up the optimizer:
                 task
                 subject
-                model_type (=type of sampler + additional tags)
+                sampler: type of sampler to use: gp, tpe or bruteforce
+                n_trials
+                load_if_exists
                 save_path
                 plot_path
-                load_if_exists
         obj_fun: objective to optimize
         direction: direction to optimize for the objective: maximize or minimize
-        type_sampler: type of sampler to use: gp, tpe or bruteforce
         n_features: needed for tpe to specify the categorical distance function over the channels
     """
-    def __init__(self, args: dict, obj_fun: Callable, direction: str, type_sampler='gp', n_features=None) -> None:
-        self.study_name = args['task'] + '_' + args['subject'] + '_' + args['model_type']
-        self.save_path = Path(args['save_path']) / args['task'] / args['subject'] / args['model_type']
-        self.plot_path = Path(args['plot_path']) / args['task'] / args['subject'] / args['model_type']
+    def __init__(self, id, args: dict, obj_fun: Callable, direction: str, n_features: any=None) -> None:
+        self.study_name = id
+        self.save_path = Path(args['save_path']) / self.study_name
+        self.plot_path = Path(args['plot_path']) / self.study_name
         self.save_path.mkdir(parents=True, exist_ok=True)
         self.plot_path.mkdir(parents=True, exist_ok=True)
         self.n_trials = args['n_trials']
         self.objective = obj_fun
         self.direction = direction
-        self.type_sampler = type_sampler
+        self.type_sampler = args['sampler']
         self.n_features = n_features
         self.load_if_exists = args['load_if_exists']
         print(self.save_path)
@@ -98,7 +99,7 @@ class Optimizer:
                 pass
 
         seed = np.random.choice(1000, 1) # cannot set constant seed because of parallel distributed setup
-        sampler = select_sampler(type_sampler, seed, n_features)
+        sampler = select_sampler(self.type_sampler, seed, self.n_features)
         np.savetxt(str(self.save_path / 'sampler_seed_process_') + str(getpid()) + '.txt', seed, fmt='%4d') # save seed to reproduce results
         self.study = optuna.create_study(study_name=self.study_name,
                                     sampler=sampler, storage='sqlite:///' + str(self.save_path / self.study_name) + '.db',
