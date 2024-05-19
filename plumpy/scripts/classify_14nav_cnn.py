@@ -104,8 +104,7 @@ class Epochs:
         aug_dims = aug.shape
 
         self.data = xx
-        self.data_augmented = aug.transpose(1, 0, 2, 3, 4).reshape((aug_dims[0]*aug_dims[1],
-                                                                    aug_dims[2], aug_dims[3], aug_dims[4]))
+        self.data_augmented = aug.transpose(1, 0, 2, 3, 4)
         self.feature_names = names
 
     # def augmented2datadim(self):
@@ -126,17 +125,16 @@ class TorchDataset(Dataset):
         return self.inputs[index], self.outputs[index]
 
 
-def objective(trial, x, y):
+def objective(trial, x_train, y_train, x_val, y_val):
     params = {
         'kernel_size': trial.suggest_int('kernel_size', 2, 8, step=2),
         'batch_size': trial.suggest_int('batch_size', 4, 24, step=4),
         'n_epochs': trial.suggest_int('n_epochs', 10, 50, step=5),
         'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
+        'weight_decay': trial.suggest_float('weight_decay', 1e-2, 100, log=True),
     }
 
-    # x dimensions: trials x timepoints x bands x channels
-    # trainer expects: trials x channels x bands x timepoints
-    train_accuracy, validation_accuracy = trainer(np.transpose(x, (0, 3, 2, 1)), y, params)
+    train_accuracy, validation_accuracy = trainer(x_train, y_train, x_val, y_val, params)
     print(f'Train accuracy: {train_accuracy}, validation accuracy: {validation_accuracy}')
     trial.set_user_attr("trainAccuracy", train_accuracy)
     return validation_accuracy
@@ -165,7 +163,7 @@ def trainer(train_inputs, train_outputs, val_inputs, val_outputs, params):
     net.to(device)
 
     # optimizer and loss
-    adam = torch.optim.Adam(net.parameters(), params['learning_rate'])
+    adam = torch.optim.Adam(net.parameters(), params['learning_rate'], weight_decay=params['weight_decay'])
     criterion = torch.nn.CrossEntropyLoss().to(device)
 
     # train
@@ -273,11 +271,10 @@ def main(config_path):
     scaler = {k: [] for k in runs}
     epochs = {k: [] for k in runs}
 
-
     #for word in list(task_info['codes'][variant].values())[:-1]:
     #selection = [word, 'rust']
     if variant=='1-7':
-        selection = ['links', 'rechts', 'selecteer', 'rust']
+        selection = ['selecteer', 'rust'] #['links', 'rechts', 'selecteer', 'rust']
     elif variant=='8-14':
         selection =['noord', 'oost', 'zuid', 'west', 'rust']
     else:
@@ -298,27 +295,36 @@ def main(config_path):
         raw_transformed = scaler[run].transform(raw[run])
 
         epochs[run] = Epochs(raw_transformed, events[run], tmin=tmin, tmax=tmax)
-        epochs[run].data2array(use_augmented=True)
-        #epochs[run].augmented2datadim()
+        epochs[run].data2array()
 
     # concatenate runs
     events_all = Events(id=name)
     events_all.dataframe = pd.concat([events[i].dataframe for i in runs]).reset_index(drop=True)
     events_all.update_label_encoder()
 
+    # stack data over runs
     epochs_data = np.vstack([epochs[i].data for i in runs])  # will be different per run if maxlen!
     events_data = np.hstack([events[i].data for i in runs])
     epochs_augmented_data = np.vstack([epochs[i].data_augmented for i in runs])
 
-    train_indices, val_indices = train_test_split(range(len(events_all.data)), test_size=0.1, random_state=42)
+    # split into train and test. Has to be here to add augmented data only to train
+    # avoid the situation where shifted versions of the same trial are in train and val, then because the only difference
+    # is translation, it is too easy for the model to generalize. Want actual new trials in val
+    train_indices, val_indices = train_test_split(range(len(events_all.data)), test_size=0.3, random_state=42)
     train_epochs = epochs_augmented_data[train_indices]
     train_events = events_data[train_indices]
     val_epochs = epochs_data[val_indices]
     val_events = events_data[val_indices]
 
-    # tile train events, reshape train epochs
-    events[run].data = np.tile(events[run].data, (epochs[run].data.shape[0], 1)).T.reshape(-1, )
-    events[run].classes = np.tile(events[run].classes, (epochs[run].data.shape[0], 1)).T.reshape(-1, )
+    # tile train events to match augmented, reshape train epochs
+    aug_dims = train_epochs.shape
+    train_epochs = train_epochs.reshape((aug_dims[0] * aug_dims[1], aug_dims[2], aug_dims[3], aug_dims[4]))
+    train_events = np.tile(train_events, (aug_dims[1], 1)).T.reshape(-1, )
+
+    # x dimensions: trials x timepoints x bands x channels
+    # trainer expects: trials x channels x bands x timepoints
+    train_epochs = np.transpose(train_epochs, (0, 3, 2, 1))
+    val_epochs = np.transpose(val_epochs, (0, 3, 2, 1))
 
     # create an optimizer
     from plumpy.ml.optimization import Optimizer
@@ -358,7 +364,7 @@ def main(config_path):
         raw_transformed = scaler[run].transform(raw[run])
 
         epochs[run] = Epochs(raw_transformed, events[run], tmin=tmin, tmax=tmax)
-        epochs[run].data2array(use_augmented=False)
+        epochs[run].data2array()
 
 
         tester(np.transpose(epochs[run].data, (0, 3, 2, 1)), events[run].data, params)
