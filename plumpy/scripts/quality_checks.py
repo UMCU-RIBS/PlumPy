@@ -14,20 +14,19 @@ pd.set_option('display.max_rows', 500)
 
 ##
 
-def run_dqc(config, task, run, preload=False, plot=True):
+def run_dqc(recording, config, preload=False, plot=False):
     ## set params
-    tag = f'{task}_{run}'
+    task = config['header']['task']
+    tag = str(Path(recording['filename']).name)
     name = config['subject']
-    subj_cfg = load_config(f'{config["meta_path"]}/{name}/{name}.yml')
-    plot_path = config['plot_path']
-    proc_path = config['data_path']
     sr_post = config['preprocess']['target_sampling_rate']
-    grid = load_grid(subj_cfg['grid_map'])
-    assert run in config['all_runs'], 'No such run'
+    grid = load_grid(name, config['subj_path'])
+    plot_path = str(Path(config['plot_path']) / name / task)
+    proc_path = str(Path(config['data_path']) / name / task)
 
     ## load data
     start = timer()
-    data, events, units = load_blackrock(config['raw_paths'][run])
+    data, events, units = load_blackrock(recording['filename'])
     elapsed_time = timer() - start
     print(f'It took {elapsed_time} seconds to load the data')
     sr_raw = data['samp_per_s']
@@ -85,18 +84,19 @@ def run_dqc(config, task, run, preload=False, plot=True):
     # plt.vlines(x=t_events_d, ymin=1, ymax=4, color='black')
 
     ## preprocess
-    channels = pd.read_csv(subj_cfg['grid_map'], header=None)
-    channels = [int(i.strip('ch')) for i in channels[0]]
+    #channels = pd.read_csv(subj_cfg['grid_map'], header=None)
+    #channels = [int(i.strip('ch')) for i in channels[0]]
+    channels = list(np.sort(grid.flatten()))
 
-    variant = config['order'][run]
-    if run not in config['dyn_runs'] and variant == '8-14':  # different codes were used before the dynamic cue
-        task_events = events_df['events'].values - 7
-        task_events[task_events == 24] = 31
-        task_events[0] = 200
-        task_events[-1] = 201
-        task_events[1] = 1
-        task_events[2] = 50
-        events_df['events'] = task_events
+    if task == 'words':
+        if recording['session'] < 9 and recording['brainFunction'] == 'NavWords_8-14':
+            task_events = events_df['events'].values - 7
+            task_events[task_events == 24] = 31
+            task_events[0] = 200
+            task_events[-1] = 201
+            task_events[1] = 1
+            task_events[2] = 50
+            events_df['events'] = task_events
     events_df.to_csv(str(Path(proc_path) / f'{tag}_events.csv'))
 
 
@@ -108,15 +108,16 @@ def run_dqc(config, task, run, preload=False, plot=True):
         # save
         for band in d_out.keys():
             np.save(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'), d_out[band])
-        variant = config['order'][run]
-        if run not in config['dyn_runs'] and variant == '8-14': # different codes were used before the dynamic cue
-            task_events = events_df['events'].values - 7
-            task_events[task_events == 24] = 31
-            task_events[0] = 200
-            task_events[-1] = 201
-            task_events[1] = 1
-            task_events[2] = 50
-            events_df['events'] = task_events
+        if task == 'words':
+            if recording['session'] < 9 and recording['brainFunction'] == 'NavWords_8-14':
+                # different codes were used before the dynamic cue
+                task_events = events_df['events'].values - 7
+                task_events[task_events == 24] = 31
+                task_events[0] = 200
+                task_events[-1] = 201
+                task_events[1] = 1
+                task_events[2] = 50
+                events_df['events'] = task_events
         events_df.to_csv(str(Path(proc_path) / f'{tag}_events.csv'))
 
     else:

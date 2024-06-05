@@ -29,7 +29,8 @@ sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 
 from sklearn.model_selection import train_test_split
 from collections import OrderedDict
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as TDataset
 from pathlib import Path
 from riverfern.ml.Scaler import Scaler
 from riverfern.dataset.Dataset import Dataset, Events
@@ -75,7 +76,7 @@ class Epochs:
                     self.data_[k].append(raw.data[k].take(range(sec2ind(ons, sr),
                                                                 sec2ind(ons, sr) + sec2ind(fixed_duration, sr)),
                                                           axis=0, mode='wrap'))
-                    for i in range(-9, 10):
+                    for i in range(-9, sec2ind(fixed_duration, sr)):
                         self.data_augmented_[k][-1].append(raw.data[k].take(range(sec2ind(ons, sr) + i,
                                                                 sec2ind(ons, sr) + i + sec2ind(fixed_duration, sr)),
                                                           axis=0, mode='wrap'))
@@ -114,7 +115,7 @@ class Epochs:
 
 
 
-class TorchDataset(Dataset):
+class TorchDataset(TDataset):
     def __init__(self, inputs, outputs):
         self.inputs = inputs
         self.outputs = outputs
@@ -129,15 +130,14 @@ def objective(trial, x_train, y_train, x_val, y_val):
     params = {
         'kernel_size': trial.suggest_int('kernel_size', 2, 8, step=2),
         'batch_size': trial.suggest_int('batch_size', 4, 24, step=4),
-        'n_epochs': trial.suggest_int('n_epochs', 10, 50, step=5),
+        'n_epochs': trial.suggest_int('n_epochs', 50, 100, step=5),
         'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
         'weight_decay': trial.suggest_float('weight_decay', 1e-2, 100, log=True),
     }
 
-    train_accuracy, validation_accuracy = trainer(x_train, y_train, x_val, y_val, params)
-    print(f'Train accuracy: {train_accuracy}, validation accuracy: {validation_accuracy}')
-    trial.set_user_attr("trainAccuracy", train_accuracy)
-    return validation_accuracy
+    train_loss, validation_loss = trainer(x_train, y_train, x_val, y_val, params)
+    print(f'Train loss: {train_loss}, validation loss: {validation_loss}')
+    return validation_loss
 
 def trainer(train_inputs, train_outputs, val_inputs, val_outputs, params):
     # data
@@ -164,7 +164,8 @@ def trainer(train_inputs, train_outputs, val_inputs, val_outputs, params):
 
     # optimizer and loss
     adam = torch.optim.Adam(net.parameters(), params['learning_rate'], weight_decay=params['weight_decay'])
-    criterion = torch.nn.CrossEntropyLoss().to(device)
+    #criterion = torch.nn.CrossEntropyLoss().to(device)
+    criterion = torch.nn.BCELoss().to(device)
 
     # train
     L = np.zeros(params['n_epochs'])
@@ -176,12 +177,14 @@ def trainer(train_inputs, train_outputs, val_inputs, val_outputs, params):
         correct = 0
         for x, t in train_loader:
             out = net(torch.autograd.Variable(x, requires_grad=False).to(device))
-            loss = criterion(out, torch.autograd.Variable(t, requires_grad=False).to(device))
+            #loss = criterion(out, torch.autograd.Variable(t, requires_grad=False).to(device))
+            loss = criterion(out, torch.autograd.Variable(t[:, None].to(torch.float), requires_grad=False).to(device))
             L[e] += loss.cpu().detach().numpy()
             net.zero_grad()
             loss.backward()
             adam.step()
-            correct += (np.argmax(out.cpu().detach().numpy(), 1) == t.detach().numpy()).astype(float).mean()
+            #correct += (np.argmax(out.cpu().detach().numpy(), 1) == t.detach().numpy()).astype(float).mean()
+            correct += (np.round(out.cpu().detach().numpy())[:,0] == t.detach().numpy()).astype(float).mean()
         L[e] /= len(train_loader)
         correct /= len(train_loader)
         print(f'\ne{e}: train loss: {L[e]},  train accuracy: {correct}')
@@ -189,9 +192,11 @@ def trainer(train_inputs, train_outputs, val_inputs, val_outputs, params):
         net = net.eval()
         for b, (x_val, t_val) in enumerate(val_loader):
             out_val = net(torch.autograd.Variable(x_val, requires_grad=False).to(device))
-            loss_val = criterion.cuda()(out_val, torch.autograd.Variable(t_val, requires_grad=False).to(device))
+            #loss_val = criterion.cuda()(out_val, torch.autograd.Variable(t_val, requires_grad=False).to(device))
+            loss_val = criterion.cuda()(out_val, torch.autograd.Variable(t_val[:, None].to(torch.float), requires_grad=False).to(device))
             L_val[e] += loss_val.cpu().detach().numpy()
-            correct_val[e] += (np.argmax(out_val.cpu().detach().numpy(), 1) == t_val.detach().numpy()).astype(float).mean()
+            #correct_val[e] += (np.argmax(out_val.cpu().detach().numpy(), 1) == t_val.detach().numpy()).astype(float).mean()
+            correct_val[e] += (np.round(out_val.cpu().detach().numpy())[:, 0] == t_val.detach().numpy()).astype(float).mean()
         L_val[e] /= len(val_loader)
         correct_val[e] /= len(val_loader)
         print(f'e{e}: validation loss: {L_val[e]}, validation accuracy: {correct_val[e]}')
@@ -284,7 +289,9 @@ def main(config_path):
         raw[run] = Dataset(id=name,
                       input_paths={k: v for k, v in config['feature_paths'][sr][run].items() if k in features},
                       channel_paths={k: config['channel_paths'][run] for k in features},
-                      sampling_rate=sr)
+                      sampling_rate=sr,
+                      n_smooth=10)
+
         events[run] = Events(id=name,
                         events_path=config['events_paths'][run],
                         selection=selection,
@@ -331,9 +338,9 @@ def main(config_path):
     opt = Optimizer(id=f'cnn_{"_".join(selection)}',
                     args=params['cnn_specs'],
                     obj_fun=lambda trial: objective(trial,
-                                                     x_train=train_epochs, y_train=train_events,
-                                                     x_val=val_epochs, y_val=val_events),
-                    direction='maximize')
+                                                     x_train=np.mean(train_epochs, -1).squeeze(), y_train=train_events,
+                                                     x_val=np.mean(val_epochs, -1).squeeze(), y_val=val_events),
+                    direction='minimize')
 
     # run optimization
     opt.optimize()
