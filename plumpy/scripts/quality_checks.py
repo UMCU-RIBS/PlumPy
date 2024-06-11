@@ -1,5 +1,6 @@
 '''
 '''
+import warnings
 import pandas as pd
 import sys
 sys.path.insert(0, './src/')
@@ -23,6 +24,8 @@ def run_dqc(recording, config, preload=False, plot=False):
     grid = load_grid(name, config['subj_path'])
     plot_path = str(Path(config['plot_path']) / name / task)
     proc_path = str(Path(config['data_path']) / name / task)
+    Path(plot_path).mkdir(parents=True, exist_ok=True)
+    Path(proc_path).mkdir(parents=True, exist_ok=True)
 
     ## load data
     start = timer()
@@ -79,6 +82,7 @@ def run_dqc(recording, config, preload=False, plot=False):
     #t_events_sec = np.array([ind2sec(i, sr_raw) for i in event_sample_ids]) # more accurate but worse accuracy?
     #t_events_d = np.array([sec2ind(i, sr_post) for i in t_events_sec])
     events_df = pd.DataFrame({'events':c_events, f'samples_{sr_post}Hz': t_events_d, 'times_sec' : t_events_sec})
+    print(events_df)
     # plt.figure()
     # plt.plot(d_out['hfb'][:, 5])
     # plt.vlines(x=t_events_d, ymin=1, ymax=4, color='black')
@@ -121,10 +125,14 @@ def run_dqc(recording, config, preload=False, plot=False):
         events_df.to_csv(str(Path(proc_path) / f'{tag}_events.csv'))
 
     else:
-        d_out = {}
-        band = 'hfb'
-        d_out['hfb'] = np.load(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'))
-        events_df = pd.read_csv(str(Path(proc_path)/f'{tag}_events.csv'))
+        try:
+            d_out = {}
+            band = 'hfb'
+            d_out['hfb'] = np.load(str(Path(proc_path)/f'{tag}_car_{band}_{sr_post}Hz.npy'))
+            events_df = pd.read_csv(str(Path(proc_path)/f'{tag}_events.csv'))
+        except:
+            warnings.warn(f'Could not load the files. Check {proc_path}')
+
 
     ## plot
     if plot:

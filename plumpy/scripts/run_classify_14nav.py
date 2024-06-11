@@ -115,7 +115,7 @@ def main(config_file):
     # process data one by one
     for i, rec in data_files.iterrows():
         print(rec)
-        data, events, _ = run_dqc(rec, config, preload=True, plot=False)
+        data, events, _ = run_dqc(rec, config, preload=False, plot=False)
 
     # classify
     prepare4classify(config_file)
