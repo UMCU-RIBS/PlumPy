@@ -14,6 +14,7 @@ def process_mne(data: np.ndarray,
                 plot_path: str = None,
                 data_name: str = None,
                 bad: list = None,
+                reference: str = 'car',
                 sr_post: float = 100.,
                 n_smooth: int = 1,
                 freqs: typing.Dict = None):
@@ -49,7 +50,7 @@ def process_mne(data: np.ndarray,
         d_.compute_psd(fmax=sr/2).plot()
         save_plot(plot_path, name=data_name + '_raw_psd')
 
-    d_.info['bads'].extend([str(i) for i in bad + 1])
+    d_.info['bads'].extend([str(i + 1) for i in bad])
     # d_.drop_channels(d_.info['bads'])
 
     ##
@@ -60,7 +61,10 @@ def process_mne(data: np.ndarray,
         save_plot(plot_path, name=data_name + '_notch_psd')
 
     ## ignores bad by default
-    d_ref, ref_par = mne.set_eeg_reference(d_.copy(), 'average')
+    if reference == 'car':
+        d_ref, ref_par = mne.set_eeg_reference(d_.copy(), 'average')
+    else:
+        raise NotImplementedError
     if plot_path:
         #plot_psd(signal=d_ref, fmax=sr/2)
         d_ref.compute_psd(fmax=sr/2).plot()

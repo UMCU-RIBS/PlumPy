@@ -3,13 +3,10 @@ Load/write info from/to files
 '''
 import json
 import warnings
-import numpy as np
 import yaml
-import pandas as pd
-import sys
-sys.path.insert(0, '/home/julia/Documents/Python/Blackrock/Python-Utilities/')
-import brpylib
 from pathlib import Path
+import numpy as np
+import pandas as pd
 
 def load_config(config_path):
     if type(config_path) == str:
@@ -52,13 +49,16 @@ def load_grid(id, data_path):
     grid = np.array(channels).reshape(-1, 8)
     return grid
 
-def load_processed(task, run, config):
-    params = config['preprocess']
+def load_channels(name, subj_path):
+    grid = load_grid(name, subj_path)
+    return list(np.sort(grid.flatten()))
+
+def load_processed(tag, params, data_dir):
     d_out = {}
     for band in params['bands']:
-        tmp_name = f'{task}_{run}_{params["reference"]}_{band}_{params["target_sampling_rate"]}Hz.npy'
-        d_out[band] = np.load(str(Path(config['data_path'])/ tmp_name))
-    events = pd.read_csv(str(Path(config['data_path']) / f'{task}_{run}_events.csv'))
+        tmp_name = f'{tag}_{params["reference"]}_{band}_{params["target_sampling_rate"]}Hz.npy'
+        d_out[band] = np.load(str(Path(data_dir)/ tmp_name))
+    events = pd.read_csv(str(Path(data_dir) / f'{tag}_events.csv'))
     return d_out, events
 
 def load_blackrock(nev_path, elec_ids='all', start_time_s=0, data_time_s='all'):
@@ -73,6 +73,9 @@ def load_blackrock(nev_path, elec_ids='all', start_time_s=0, data_time_s='all'):
         all_data: dict, trigger information
         units: list of str per channel: uV, used in plots
     '''
+    import sys
+    sys.path.insert(0, '/home/julia/Documents/Python/Blackrock/Python-Utilities/')
+    import brpylib
 
     datafile_nev = Path(nev_path)
     assert datafile_nev.exists(), f'{datafile_nev} does not exist'
@@ -82,8 +85,6 @@ def load_blackrock(nev_path, elec_ids='all', start_time_s=0, data_time_s='all'):
             datafile_nsx = Path(nsx_path)
             warnings.warn(f'Loading ns{x}. Double-check if this is correct.')
             break
-
-    #assert datafile_nsx.exists(), f'{datafile_nsx} does not exist'
 
     nsx_file = brpylib.NsxFile(str(datafile_nsx))
     cont_data = nsx_file.getdata(elec_ids, start_time_s, data_time_s, downsample=1, full_timestamps=True)
@@ -183,9 +184,11 @@ def select_datafiles(hdr, data_files):
 
 def get_data(config):
     from riverfern.utils.io import load_by_id
-    subject = load_by_id(config['subject'], config['data_path'])
+    import plumpy
+    subject = load_by_id(config['subject'], plumpy.PLUMPY_CONFIG_DIR)
     data_files = load_datapaths(subject['data_paths'])
     datafiles = select_datafiles(config['header'], data_files)
+    datafiles.insert(0, column='subject', value=config['subject'])
     return datafiles
 
 
