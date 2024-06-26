@@ -39,6 +39,7 @@ def classify(all_data, all_events, params):
         # put data into the dataset: dictionary with keys = frequency bands
         raw[run] = Dataset(id=run,
                            inputs=all_data[run],
+                           channels=params['features'],
                            sampling_rate=params['sampling_rate'],
                            downsample_factor=params['downsample_factor'])
         # put data into events: dataframe with events in events[run].dataframe
