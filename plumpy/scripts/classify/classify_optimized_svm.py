@@ -10,7 +10,7 @@ Virtual environment: mne
 
 How to run:
     python plumpy/scripts/classify/classify_optimized_svm.py \
-        -c /Fridge/bci/data/23-171_CortiCom/F_DataAnalysis/plumpy_configs/config_classify_gestures_optimized_svm_subset_channels.yml
+        -c /Fridge/bci/data/23-171_CortiCom/F_DataAnalysis/plumpy_configs/classify/config_classify_gestures_svm_subset_channels.yml
 
 JB, 2024
 
@@ -128,7 +128,7 @@ def main(config_file):
         print(rec['filename'])
         output = run_dqc(rec,
                          config['preprocess'],
-                         preload=True,
+                         preload=False,
                          save_dir=config['data_path'],
                          plot_dir=None)
         data.append(output[0])

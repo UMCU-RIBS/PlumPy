@@ -7,8 +7,8 @@ import sys
 
 import plumpy
 
-sys.path.insert(0, './src/')
-sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
+#sys.path.insert(0, './src/')
+#sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 from timeit import default_timer as timer
 from plumpy.utils.io import load_config, load_blackrock, load_grid
 from plumpy.utils.general import to_list
@@ -91,7 +91,7 @@ def run_dqc(recording: pd.Series | typing.Dict,
         plot_dir = str(Path(plot_dir) / name / task)
         Path(plot_dir).mkdir(parents=True, exist_ok=True)
     
-    if not preload:
+    if not preload: #or not Path(save_dir).exists() or not any(Path(save_dir).iterdir()):
 
         # load data
         start = timer()
