@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='plumpy',
@@ -8,9 +8,14 @@ setup(
     author='Julia Berezutskaya',
     author_email='y.berezutskaya@umcutrecht.nl',
     license='MIT',
-    packages=['plumpy'],
-    install_requires=['scikit-learn',
-                      'numpy',                     
+    packages=find_packages(),
+    install_requires=['matplotlib',
+                      'numpy',
+                      'mne',
+                      'optuna',
+                      'pandas',
+                      'PyYAML',
+                      'scikit_learn',                 
                       ],
 
     classifiers=[

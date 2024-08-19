@@ -22,23 +22,24 @@ TODO:
     - reduce number of dependences
 '''
 
-import sys
-sys.path.insert(0, '.')
-sys.path.insert(0, '/home/julia/Documents/Python/RiverFErn')
-sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
+# import sys
+# sys.path.insert(0, '.')
+# sys.path.insert(0, '/home/julia/Documents/Python/RiverFErn')
+# sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 import argparse
 import matplotlib
 import warnings
 import numpy as np
 import pandas as pd
 from scipy import stats
+from plumpy.utils.io import load_config, get_data
+from plumpy.scripts.quality_checks import run_dqc
 from riverfern.dataset.Dataset import Dataset, Events
 from riverfern.ml.Scaler import Scaler
 from riverfern.dataset.Epochs import Epochs
 from riverfern.ml.OptimizedSVM import OptimizedSVM
 from riverfern.ml.ParallelCV import ParallelCV_SVM
-from plumpy.scripts.quality_checks import run_dqc
-from plumpy.utils.io import load_config, get_data
+
 
 matplotlib.use('Agg')
 warnings.simplefilter(action='ignore', category=FutureWarning)

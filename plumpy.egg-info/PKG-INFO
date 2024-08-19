@@ -12,5 +12,10 @@ Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: POSIX :: Linux
 Classifier: Programming Language :: Python :: 3.11
 License-File: LICENSE
-Requires-Dist: scikit-learn
+Requires-Dist: matplotlib
 Requires-Dist: numpy
+Requires-Dist: mne
+Requires-Dist: optuna
+Requires-Dist: pandas
+Requires-Dist: PyYAML
+Requires-Dist: scikit_learn
