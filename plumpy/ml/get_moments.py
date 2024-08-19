@@ -31,7 +31,7 @@ def get_moments(source, xmin, xmax=None, duration=None, units='seconds', sr=None
         raise NotImplementedError
 
     if units == 'seconds':
-        assert sr is not None, 'Sr needs to be set for seconds'
+        assert sr is not None, 'Sampling rate needs to be set for seconds'
         beg = sec2ind(xmin, sr)
         end = sec2ind(xmax_, sr)
     elif units == 'samples':

@@ -61,6 +61,7 @@ import optuna
 import sys
 sys.path.insert(0, './src/')
 sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
+import plumpy
 from plumpy.utils.io import load_config
 from plumpy.utils.general import to_list
 
@@ -68,18 +69,18 @@ eng = matlab.engine.start_matlab()
 s = eng.genpath('/home/julia/Documents/Python/PlumPy/plumpy/misc/matlab')
 eng.addpath(s, nargout=0)
 
-def channel_selector(selection:str='all'):
+def channel_selector(name:str = None, selection:str = 'all'):
     """
     Select channels to draw from during the optimization procedure
     Args:
+        name: subject name
         selection (str): from top2, bottom2. grasp16, selecteer16 and all
 
     Returns:
         list: channels
     """
     from plumpy.utils.io import load_grid
-    grid = load_grid(
-        '/Fridge/bci/data/23-171_CortiCom/E_ResearchData/UBCI-CC02/7_Electrode_localization/Electrode order map/CortecGrid_electrode_label.txt')
+    grid = load_grid(name, plumpy.PLUMPY_CONFIG_DIR)
     if isinstance(selection, str):
         if selection == 'top2grids':
             channels = grid[:8]
@@ -110,10 +111,10 @@ def optimize_mat_multiclicks(trial, subject, task, brain_function, sequence_dura
     # populate hdr with brainFunction and session values,
     hdr = {}
     hdr['subject'] = subject.upper()
-    hdr['task'] = task[:1].capitalize() + task[1:]
+    hdr['task'] = task
     hdr['session'] = np.array(session)
     hdr['sequenceDuration'] = sequence_duration
-    hdr['brainFunction'] = brain_function.capitalize()
+    hdr['brainFunction'] = brain_function
     print(f'Running optimization: {id}')
     print(f'Number of features: {n_features}')
     print(f'Draw from channels: {draw_channels_from}')
@@ -122,29 +123,29 @@ def optimize_mat_multiclicks(trial, subject, task, brain_function, sequence_dura
             warnings.warn(f'{brain_function.capitalize()} and {sequence_duration} may not be compatible')
 
     # specify which channels to draw from
-    channels = channel_selector(draw_channels_from)
+    channels = channel_selector(subject, draw_channels_from)
 
     # set reasonable bounds for certain parameters
-    lowFreqBins = {0:[5., 15.], 1:[55., 95.]}
-    highFreqBins = {0: [15., 35.], 1: [95., 145.]}
-    linWeights = {0: [-1., 0.], 1: [.5, 1]}
+    lowFreqBins = {0:[5., 15.], 1:[60., 90.]}
+    highFreqBins = {0: [15., 25.], 1: [90., 120.]}
+    linWeights = {0: [-1., 0.], 1: [0., 1.]}
 
     # initialize parameters from specified distributions
     params = {
         'featureWeights': np.array([trial.suggest_float(f'featureWeight{i}', 0., 1, step=.2)
                                                                         for i in range(n_features)]),
         'linearWeights': np.array([trial.suggest_float(f'linearWeights{i}', linWeights[i][0],
-                                                                            linWeights[i][1], step=.5)
+                                                                            linWeights[i][1], step=1)
                                                                         for i in range(n_bins)]),
         'timeSmoothing': trial.suggest_float(f'timeSmoothing', 2., 30., step=4),
-        'threshold': trial.suggest_float(f'threshold', .1, 2., step=.1),
-        'activePeriod': trial.suggest_float(f'activePeriod', .5, 1.5, step=.2),
-        'activeRate': trial.suggest_float(f'activeRate', .5, 1., step=.1),
-        'lowFreq': np.array([trial.suggest_float(f'lowFreq{i}', lowFreqBins[i][0], lowFreqBins[i][1], step=5)
+        'threshold': trial.suggest_float(f'threshold', .2, 2., step=.1),
+        'activePeriod': trial.suggest_float(f'activePeriod', .2, 1.5, step=.1),
+        'activeRate': trial.suggest_float(f'activeRate', .2, 1., step=.1),
+        'lowFreq': np.array([trial.suggest_float(f'lowFreq{i}', lowFreqBins[i][0], lowFreqBins[i][1], step=10)
                                                                         for i in range(n_bins)]),
     }
     # set highFreq dynamically depending on the lowFreq value, allow for highFreq - lowFreq to be at least 10
-    params['highFreq'] = np.array([trial.suggest_float(f'highFreq{i}', params[f'lowFreq'][i]+10, highFreqBins[i][1], step=5) for i in range(n_bins)])
+    params['highFreq'] = np.array([trial.suggest_float(f'highFreq{i}', params[f'lowFreq'][i]+10, highFreqBins[i][1], step=10) for i in range(n_bins)])
 
     # keep all channels if the size of the drawing pool equals the number of features
     if len(channels) == n_features:
@@ -172,7 +173,7 @@ def optimize_mat_multiclicks(trial, subject, task, brain_function, sequence_dura
 
 ##
 # load configuration file with parameters for this study
-cfg = load_config('/Fridge/users/julia/project_corticom/cc2/config_opt_matlab.yml')
+cfg = load_config('/Fridge/bci/data/23-171_CortiCom/F_DataAnalysis/plumpy_configs/config_opt_matlab.yml')
 
 # initialize the optimizer
 from plumpy.ml.optimization import Optimizer

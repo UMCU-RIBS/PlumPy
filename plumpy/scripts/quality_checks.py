@@ -153,17 +153,20 @@ def run_dqc(recording: pd.Series | typing.Dict,
         # t_events_sec = np.array([ind2sec(i, sr_raw) for i in event_sample_ids]) # more accurate but worse accuracy?
         # t_events_d = np.array([sec2ind(i, sr_post) for i in t_events_sec])
         events_df = pd.DataFrame({'events': c_events, f'samples_{sr_post}Hz': t_events_d, 'times_sec': t_events_sec})
-
-        if task == 'navWords':
-            if recording['session'] < 9 and recording['brainFunction'] == '8-14words':
-                task_events = events_df['events'].values - 7
-                task_events[task_events == 24] = 31
-                task_events[0] = 200
-                task_events[-1] = 201
-                task_events[1] = 1
-                task_events[2] = 50
-                events_df['events'] = task_events
-        get_task_event_names(task, brainFunction, events_df, add_dyn_cue_val=1)  # add 1 for when dynamic cue stops
+        add_dyn_cue_val = 0
+        if task == 'navWords' or task == 'gestures':
+            add_dyn_cue_val = 1
+            if task == 'navWords' and recording['session'] < 9:
+                if recording['brainFunction'] == '8-14words':
+                    task_events = events_df['events'].values - 7
+                    task_events[task_events == 24] = 31
+                    task_events[0] = 200
+                    task_events[-1] = 201
+                    task_events[1] = 1
+                    task_events[2] = 50
+                    events_df['events'] = task_events
+                add_dyn_cue_val = 0
+        get_task_event_names(task, brainFunction, events_df, add_dyn_cue_val=add_dyn_cue_val)  # add 1 for when dynamic cue stops
         print(events_df)
 
         # save

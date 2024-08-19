@@ -1,25 +1,7 @@
 '''
-Script applies SVM classification to data coming from the implant
-It first applies preprocessing to raw data, extracts events and brain data from task parameters specified andd applies
-classification.
-
-To run the script, you need a configuration yml file that sets up desired parameters.
-
-This is a basic classifier version.
-Virtual environment: mne
-
 How to run:
     python plumpy/scripts/classify/classify_optimized_svm.py \
-        -c /Fridge/bci/data/23-171_CortiCom/F_DataAnalysis/plumpy_configs/config_classify_gestures_optimized_svm_subset_channels.yml
-
-JB, 2024
-
-TODO:
-    - refactor code to allow classifiers other than SVM (currently dependent on RIVERFERN)
-    - incorporate new feature optimization toolbox
-    - run RFE or no_channel_optimization from the same script based on config file
-    - refactor Scaler part to use parameters from the config file
-    - reduce number of dependences
+        -c /Fridge/bci/data/23-171_CortiCom/F_DataAnalysis/plumpy_configs/config_classify_gestures_optimized_svm.yml
 '''
 
 import sys
@@ -27,8 +9,6 @@ sys.path.insert(0, '.')
 sys.path.insert(0, '/home/julia/Documents/Python/RiverFErn')
 sys.path.insert(0, '/home/julia/Documents/Python/PlumPy')
 import argparse
-import matplotlib
-import warnings
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -39,8 +19,10 @@ from riverfern.ml.OptimizedSVM import OptimizedSVM
 from riverfern.ml.ParallelCV import ParallelCV_SVM
 from plumpy.scripts.quality_checks import run_dqc
 from plumpy.utils.io import load_config, get_data
-
+import matplotlib
 matplotlib.use('Agg')
+
+import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def classify(all_data, all_events, params):
@@ -69,7 +51,7 @@ def classify(all_data, all_events, params):
         # normalize input: zscore
         scaler[run] = Scaler(data=raw[run],
                              events=events[run],
-                             xmin=events[run].dataframe_ori[events[run].dataframe_ori['events'] == 50]['times_sec'].iloc[0],
+                             xmin=0,
                              duration=5,
                              units='seconds')
         raw_transformed = scaler[run].transform(raw[run])
@@ -78,7 +60,7 @@ def classify(all_data, all_events, params):
         epochs[run] = Epochs(raw_transformed, events[run],
                              tmin=tmin,
                              tmax=tmax,
-                             column_onset='times_sec')
+                             column_onset='xmin')
         # dictionary of data to 4d array: trials x timepoints x bands x electrodes
         epochs[run].data2array()
 
@@ -108,7 +90,7 @@ def classify(all_data, all_events, params):
 
     # report results
     print('_'.join(events_all.classes))
-    print(f'Sampling rate: {params["sampling_rate"]}, tmin: {tmin}, tmax: {tmax}')
+    print(f'Sampling rate: {params['sampling_rate']}, tmin: {tmin}, tmax: {tmax}')
     print(f'Median CV accuracy: {np.median(scores)} +- {stats.median_abs_deviation(scores)}')
     print(f'Mean CV accuracy: {np.mean(scores)} +- {np.std(scores)}')
     print(f'Median CV accuracy avg time: {np.round(np.median(scores2), 2)}+-{np.round(stats.median_abs_deviation(scores2), 2)}')
@@ -117,25 +99,27 @@ def classify(all_data, all_events, params):
 
 def main(config_file):
     # get data
-    config = load_config(config_file)
-    data_files = get_data(config)
-    data, events = [], []
-
-    # process data one by one
-    for i, rec in data_files.iterrows():
-        print(rec)
-        print(rec['filename'])
-        output = run_dqc(rec,
-                         config['preprocess'],
-                         preload=True,
-                         save_dir=config['data_path'],
-                         plot_dir=None)
-        data.append(output[0])
-        events.append(output[1])
+    config = {'classify': {}}
+    x = np.load('/Fridge/users/julia/project_RFE_jip_janneke/data/duiven/hfb_jip_janneke_ecog_car_70-170_avgfirst_10Hz_log.npy')
+    data = {'hfb': x}
+    events = pd.read_csv('/Fridge/users/julia/project_RFE_jip_janneke/data/duiven/words_jip_janneke.csv')
 
     # classify
-    config['classify']['sampling_rate'] = config['preprocess']['target_sampling_rate']
-    classify(data, events, config['classify'])
+    config['classify']['strategy'] = 'svm'
+    config['classify']['sampling_rate'] = 10
+    config['classify']['downsample_factor'] = 1
+    config['classify']['epochs'] = {}
+    config['classify']['epochs']['tmin'] = 0.0
+    config['classify']['epochs']['tmax'] = 1.0
+    config['classify']['classes'] = ['grootmoeder', 'spelen', 'jip']
+    config['classify']['features'] = {'hfb': []}
+    config['classify']['optimized_svm'] = {}
+    config['classify']['optimized_svm']['c_min'] = 1.0e-05
+    config['classify']['optimized_svm']['c_max'] = 1000000.0
+    config['classify']['optimized_svm']['n_optuna_trials'] = 30
+    config['classify']['optimized_svm']['kernel'] = 'linear'
+    config['classify']['optimized_svm']['force_cpu'] = True
+    classify([data], [events], config['classify'])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameters for decoding')

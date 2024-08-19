@@ -8,7 +8,6 @@ import matplotlib
 matplotlib.use('Agg')
 #matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
-import seaborn as sns
 
 def save_plot(plot_path, name, format='png'):
     if plot_path is not None:
@@ -31,11 +30,13 @@ def plot_data(data, events, plot_chan=5, seg_id=0, units=None):
 
 
 def plot_psd(signal, fmax):
+    import seaborn as sns
     with sns.plotting_context('poster'):
         signal.plot_psd(fmin=1, fmax=fmax)
         plt.tight_layout()
 ##
 def plot_signals_on_grid(signals, grid, outliers=[-1], ymin=-2000, ymax=2000):
+    import seaborn as sns
     with sns.plotting_context('poster', font_scale=1):
         fig = plt.figure(figsize=(14, 16), layout="constrained")
         spec = fig.add_gridspec(nrows=16, ncols=8)

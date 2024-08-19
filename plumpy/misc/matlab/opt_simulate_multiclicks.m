@@ -67,9 +67,13 @@ header.task             = hdr.task;     %'MultiClicks';
 header.brainFunction    = hdr.brainFunction; % Grasp Selecteer
 header.app              = 'PT'; % 'PT' = palmtree 'PRES' = presentation (central)
 header.session          = hdr.session; % empty = all [17, 18]
+header.feedback         = 1;
 
 file_paths              = pt_selectDatafiles(header);
 data                    = pt_loadData2StructFromFile(header,file_paths);
+
+% EXCLUDE THE LAST RUN BECAUSE THAT WAS DYNAMIC
+data = data(1:17);
 
 %% Click to choose
 sequenceDuration        = hdr.sequenceDuration; 
